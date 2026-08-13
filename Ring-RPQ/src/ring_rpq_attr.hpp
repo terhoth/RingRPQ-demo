@@ -26,6 +26,7 @@
 #ifndef RING_RPQ_ATTR
 #define RING_RPQ_ATTR
 
+#include <iostream>
 #include <cstdint>
 #include <chrono>
 #include <set>
@@ -45,6 +46,7 @@
 #include "wt_helper.hpp"
 #include "selectivity.hpp"
 #include "attr_info.hpp"
+#include "load_index_util.cpp"
 
 #define ELEMENTS 0
 #define RUN_QUERY 0
@@ -91,60 +93,143 @@ class ring_rpq_attr {
 	uint64_t max_P;
 	uint64_t max_O;
 	uint64_t nTriples;  // number of triples
+ 
+	std::unordered_map<uint64_t, std::string> p_id_to_name;
+	std::unordered_map<std::string, uint64_t> p_name_to_id;
+	std::unordered_map<std::string, AttrInfo> attr_info_map;
 
 	// query-specific vector containing the useful automata state sets for each bwt node
 	std::vector<word_t> B_array;
 
 public:
 
-	ring_rpq_attr() { ; }
+	ring_rpq_attr(): real_max_P(0), max_P(0), max_S(0), max_O(0), nTriples(0) {}
 
-	// Assumes the triples have been stored in a vector<spo_triple_with_id>,
-	// including a reflexive edge labeled NODE_SYMBOL for each node, with id max_p+1.
-	ring_rpq_attr(vector<spo_triple_with_id>& Data, 
-					const vector<unordered_map<uint64_t, string>>& _str_attributes,
-					const vector<unordered_map<uint64_t, int>>& _int_attributes,
-					const vector<unordered_map<uint64_t, float>>& _flt_attributes,
-					bool verbose = true) 
+	ring_rpq_attr(std::string filename)
 	{
+		construct(filename);
+	}
+
+	void construct(std::string filename, bool verbose = false)
+	{
+		ifstream ifs(filename.c_str());
+		if (!ifs.is_open()) throw std::invalid_argument("Could not open " + filename);
+		if (verbose) cout << "Opened " << filename << " successfully" << endl;
+		
 		auto start = timer::now();
 
-		// find maximum subject, predicate and object
-		max_S = get<0>(Data[0]);
-		max_P = get<1>(Data[0]);
-		max_O = get<2>(Data[0]);
-		for (uint64_t i = 1; i < Data.size(); i++) {
-			if (max_S < get<0>(Data[i])) max_S = get<0>(Data[i]);
-			if (max_P < get<1>(Data[i])) max_P = get<1>(Data[i]);
-			if (max_O < get<2>(Data[i])) max_O = get<2>(Data[i]);
-		}
-		real_max_P = max_P;
-	
-		// for every triple, adds its reverse (using a predicate
-		// shifted by max_P, so 1 becomes max_P+1 in the reverse,
-		// and so on)
-		if (verbose) cout << "  > Adding inverted edges";
-		uint64_t d = Data.size();
-		spo_triple_with_id triple_aux;
-		for (uint64_t i = 0; i < d; i++) 
+		// Read attribute names and types, 
+		// and count how many attributes there are
+		if (verbose) cout << "preprocessing attributes..." << endl;
+		std::unordered_map<std::string, AttrInfo> attr_info_map;
+		std::vector<AttrInfo> edge_attr_infos;
+		std::vector<AttrInfo> node_attr_infos;
+		auto attr_counts = load_attribute_info(filename, attr_info_map, &edge_attr_infos, &node_attr_infos);
+		int n_of_str_attrs = get<0>(attr_counts); 
+		int n_of_int_attrs = get<1>(attr_counts); 
+		int n_of_flt_attrs = get<2>(attr_counts); 
+
+		// initialize maps for storing attributes values
+		std::vector<std::unordered_map<uint64_t, std::string>> _str_attributes(n_of_str_attrs);
+		std::vector<std::unordered_map<uint64_t, int>> _int_attributes(n_of_int_attrs);
+		std::vector<std::unordered_map<uint64_t, float>> _flt_attributes(n_of_flt_attrs);
+
+		// Gather the triples into a vector Data, and read edge attributes
+
+		// (the fourth uint64_t below is the triple's index, comparable to a edge id)
+		using spo_triple_with_id = tuple<uint64_t, uint64_t, uint64_t, uint64_t>;
+		vector<spo_triple_with_id> Data;
+
+		// find largest predicate
+		ifstream P_ifs((filename + ".P").c_str());
+		uint64_t max_p = 0;
+		uint64_t p;
+		while (P_ifs >> p)
 		{
-			if (get<1>(Data[i]) == real_max_P) continue; // ignore reflexive node edges
-			triple_aux = Data[i];
-			Data.push_back(spo_triple_with_id(get<2>(Data[i]), get<1>(Data[i]), 
-			                                  get<0>(Data[i]), get<3>(Data[i])));
-			get<0>(Data[i]) = get<0>(triple_aux);
-			get<1>(Data[i]) = get<1>(Data[i]) + real_max_P;
-			get<2>(Data[i]) = get<2>(triple_aux);
-			get<3>(Data[i]) = get<3>(triple_aux);
+			if (p > max_p) max_p = p;
+			P_ifs.ignore(numeric_limits<streamsize>::max(), '\n');
 		}
+		real_max_P = max_p + 1;
+		max_P = max_p + 1;
+
+		cout << "reading triples..." << endl;
+		uint64_t s, o;
+		uint64_t triple_id = 0;
+		string str_value;
+		while (ifs >> s >> p >> o) // read triple
+		{
+			// read edge attribute values
+			for (AttrInfo attr : edge_attr_infos)
+			{
+				ifs >> str_value;
+				if (str_value != NULL_VALUE)
+				{
+					if (attr.type == AttrInfo::Str)
+					{
+						_str_attributes.at(attr.id)[triple_id] = str_value;
+					}
+					else if (attr.type == AttrInfo::Int)
+					{
+						_int_attributes.at(attr.id)[triple_id] = stoi(str_value);
+					}
+					else if (attr.type == AttrInfo::Flt)
+					{
+						_flt_attributes.at(attr.id)[triple_id] = stof(str_value);
+					}
+				} 
+			}
+			// add the triple to Data
+			Data.push_back(spo_triple_with_id(s, p + real_max_P, o, triple_id));
+			Data.push_back(spo_triple_with_id(o, p, s, triple_id));
+			triple_id++;
+
+			if (p + real_max_P > max_P) max_P = p + real_max_P;
+			if (s > max_S) max_S = s;
+			if (o > max_O) max_O = o;
+		}
+
+		// Read node attributes:
+		cout << "reading nodes..." << endl;
+		ifstream SO_ifs((filename + ".SO").c_str());
+		uint64_t node_id;
+		while (SO_ifs >> node_id)
+		{
+			for (AttrInfo attr : node_attr_infos)
+			{
+				SO_ifs >> str_value;
+				if (str_value != NULL_VALUE)
+				{
+					if (attr.type == AttrInfo::Str)
+					{
+						_str_attributes.at(attr.id)[triple_id] = str_value;
+					}
+					else if (attr.type == AttrInfo::Int)
+					{
+						_int_attributes.at(attr.id)[triple_id] = stoi(str_value);
+					}
+					else if (attr.type == AttrInfo::Flt)
+					{
+						_flt_attributes.at(attr.id)[triple_id] = stof(str_value);
+					}
+				}
+			}
+			// add a reflexive edge to store node attributes, with an unused predicate id
+			Data.push_back(spo_triple_with_id(node_id, max_p + 1, node_id, triple_id));
+			triple_id++;
+		}
+
 		Data.shrink_to_fit();
-		max_P += real_max_P;
-		if (verbose) cout << "... [done]" << endl;
-
-		if (verbose) cout << "  > Triples set = " 
-		                  << Data.size() * sizeof(spo_triple_with_id) << " bytes" << endl;
-		fflush(stdout);
-
+		uint64_t input_size = Data.size();
+		
+		if (verbose)
+		{
+			cout << "--Indexing " << Data.size() << " triples " 
+			     << "with " << attr_info_map.size() << " attributes "
+			     << "(str: "<< n_of_str_attrs 
+			     << ", int: " << n_of_int_attrs 
+			     << ", flt: " << n_of_flt_attrs << ")" << endl;
+		}
+		auto data_end = timer::now();
 
 		nTriples = Data.end() - Data.begin();
 
@@ -276,13 +361,15 @@ public:
 		if (verbose) cout << "-- Index constructed successfully" << endl;
 		if (verbose)
 		{
-			int initial_time = duration_cast<seconds>(sort1_start - start).count();
+			int data_time = duration_cast<seconds>(data_end - start).count();
+			int initial_time = duration_cast<seconds>(sort1_start - data_end).count();
 			int sort1_time = duration_cast<seconds>(sort1_stop - sort1_start).count();
 			int construct1_time = duration_cast<seconds>(sort2_start - sort1_stop).count();
 			int sort2_time = duration_cast<seconds>(sort2_stop - sort2_start).count();
 			int construct2_time = duration_cast<seconds>(stop - sort2_stop).count();
-			printf("%d, %d, %d, %d, %d\n", initial_time, sort1_time, construct1_time, 
-			                                             sort2_time, construct2_time);
+			printf("%d, %d, %d, %d, %d, %d\n", data_time, initial_time,
+			                                   sort1_time, construct1_time, 
+			                                   sort2_time, construct2_time);
 		}
 
 	};
