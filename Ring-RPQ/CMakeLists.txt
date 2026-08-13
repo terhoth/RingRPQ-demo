@@ -62,24 +62,6 @@ target_link_libraries(build-index-attr sdsl divsufsort divsufsort64 nfa)
 add_executable(query-index-attr src/query-index-attr.cpp)
 target_link_libraries(query-index-attr sdsl divsufsort divsufsort64 nfa)
 
-add_executable(build-index-split src/build-index-split.cpp)
-target_link_libraries(build-index-split sdsl divsufsort divsufsort64 nfa)
-
-add_executable(build-index-basic src/build-index-basic.cpp)
-target_link_libraries(build-index-basic sdsl divsufsort divsufsort64 nfa)
-
-add_executable(query-index-basic src/query-index-basic.cpp)
-target_link_libraries(query-index-basic sdsl divsufsort divsufsort64 nfa)
-
-add_executable(query-index-split src/query-index-split.cpp)
-target_link_libraries(query-index-split sdsl divsufsort divsufsort64 nfa)
-
-add_executable(benchmark-split src/benchmark-split.cpp)
-target_link_libraries(benchmark-split sdsl divsufsort divsufsort64 nfa)
-
-add_executable(benchmark-paths src/benchmark-paths.cpp)
-target_link_libraries(benchmark-paths sdsl divsufsort divsufsort64 nfa)
-
 add_executable(sort-dict src/utilities/sort-pos.cpp)
 target_link_libraries(sort-dict sdsl divsufsort divsufsort64 nfa)
 
