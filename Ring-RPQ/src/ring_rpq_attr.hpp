@@ -591,6 +591,7 @@ public:
 	}
 
 
+	// Implemented by Terho Thorel.
 	// Evaluates a query, collecting in output the pairs of names of nodes
 	// that are connected by a path that matches the query.
 	// The query should consist of subject name, rpq expression, and object name,
@@ -665,6 +666,80 @@ public:
 		cleanup_nested_query(subqueries.size());
 
 		return ParseError::None;
+	}
+
+
+	// Implemented by Terho Thorel.
+	// Collects all paths whose length is the given depth,
+	// starting from the node with the given name.
+	// Each returned path contains the sequence of predicate names
+	// with the endpoint node name appended to its end.
+	// Edges are followed either forwards, backwards, or both,
+	// depending on the boolean arguments.
+	void find_paths(std::string start_node, unsigned int depth, 
+	                std::vector<std::vector<std::string>>& paths,
+	                bool forward = true, bool backward = false, 
+	                timer::time_point start_time = timer::now())
+	{
+		if (SO_name_to_id.find(start_node) == SO_name_to_id.end())
+		{
+			throw std::invalid_argument("Unknown node: " + start_node);
+		}
+		uint64_t start_id = SO_name_to_id.at(start_node);
+
+		// recursive depth-first-search algorithm
+		// (paths.back() is the current path)
+
+		// create empty path on first call
+		if (paths.size() == 0) paths.push_back({});
+
+		if (paths.back().size() < depth)
+		{
+			// find the current node's interval in L_P
+			uint64_t left = L_P.get_C(start_id);
+			uint64_t right = L_P.get_C(start_id + 1) - 1;
+			// go through all possible predicates
+			std::vector<uint64_t> p_vec;
+			L_P.all_values_in_range_bounded(left, right, p_vec, right - left + 1);
+			for (uint64_t p : p_vec)
+			{
+				if (p == 0 or p == real_max_P) continue; // are not actual edges
+
+				if ((forward and p < real_max_P) or (backward and p > real_max_P))
+				{
+					// find the interval in L_S for nodes reached with p
+					std::pair<uint64_t, uint64_t> I_s = L_P.backward_step(left, right, p);
+					I_s.first += C_S[p];
+					I_s.second += C_S[p];
+					for (uint64_t i = I_s.first; i <= I_s.second; i++)
+					{
+						// advance recursively
+						paths.back().push_back(P_id_to_name.at(p % real_max_P));
+						std::string next_node = SO_id_to_name.at(L_S[i]);
+						find_paths(next_node, depth, paths, forward, backward, start_time);
+					}
+				}
+
+				auto time = timer::now();
+				auto time_span = duration_cast<seconds>(time - start_time);
+				if (time_span.count() > TIME_OUT) break;
+			}
+		}
+		else
+		{
+			// save the resulting path with the endpoint node name
+			paths.back().push_back(SO_id_to_name.at(start_id));
+			// continue with the same path (without end node)
+			paths.emplace_back(paths.back());
+			paths.back().pop_back();
+		}
+
+		// retract along the path
+		if (paths.back().size() > 0)
+		{
+			paths.back().pop_back();
+		}
+		else paths.pop_back(); // remove empty path when recursion ends
 	}
 
 
@@ -1657,81 +1732,6 @@ private:
 		unmark(A);
 
 		return is_trivial;
-	}
-
-
-
-	// Implemented by Terho Thorel.
-	// Collects all paths whose length is the given depth,
-	// starting from the node with the given name.
-	// Each returned path contains the sequence of predicate names
-	// with the endpoint node name appended to its end.
-	// Edges are followed either forwards, backwards, or both,
-	// depending on the boolean arguments.
-	void find_paths(std::string start_node, unsigned int depth, 
-	                std::vector<std::vector<std::string>>& paths,
-	                bool forward = true, bool backward = false, 
-	                timer::time_point start_time = timer::now())
-	{
-		if (SO_name_to_id.find(start_node) == SO_name_to_id.end())
-		{
-			throw std::invalid_argument("Unknown node: " + start_node);
-		}
-		uint64_t start_id = SO_name_to_id.at(start_node);
-
-		// recursive depth-first-search algorithm
-		// (paths.back() is the current path)
-
-		// create empty path on first call
-		if (paths.size() == 0) paths.push_back({});
-
-		if (paths.back().size() < depth)
-		{
-			// find the current node's interval in L_P
-			uint64_t left = L_P.get_C(start_id);
-			uint64_t right = L_P.get_C(start_id + 1) - 1;
-			// go through all possible predicates
-			std::vector<uint64_t> p_vec;
-			L_P.all_values_in_range_bounded(left, right, p_vec, right - left + 1);
-			for (uint64_t p : p_vec)
-			{
-				if (p == 0 or p == real_max_P) continue; // are not actual edges
-
-				if ((forward and p < real_max_P) or (backward and p > real_max_P))
-				{
-					// find the interval in L_S for nodes reached with p
-					std::pair<uint64_t, uint64_t> I_s = L_P.backward_step(left, right, p);
-					I_s.first += C_S[p];
-					I_s.second += C_S[p];
-					for (uint64_t i = I_s.first; i <= I_s.second; i++)
-					{
-						// advance recursively
-						paths.back().push_back(P_id_to_name.at(p % real_max_P));
-						std::string next_node = SO_id_to_name.at(L_S[i]);
-						find_paths(next_node, depth, paths, forward, backward, start_time);
-					}
-				}
-
-				auto time = timer::now();
-				auto time_span = duration_cast<seconds>(time - start_time);
-				if (time_span.count() > TIME_OUT) break;
-			}
-		}
-		else
-		{
-			// save the resulting path with the endpoint node name
-			paths.back().push_back(SO_id_to_name.at(start_id));
-			// continue with the same path (without end node)
-			paths.emplace_back(paths.back());
-			paths.back().pop_back();
-		}
-
-		// retract along the path
-		if (paths.back().size() > 0)
-		{
-			paths.back().pop_back();
-		}
-		else paths.pop_back(); // remove empty path when recursion ends
 	}
 
 };
