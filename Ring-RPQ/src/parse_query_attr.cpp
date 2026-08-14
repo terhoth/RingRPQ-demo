@@ -65,7 +65,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 {
 	std::string str_aux;
 
-	while (i < rpq.size()) {
+	while ((unsigned)i < rpq.size()) {
 		if (rpq[i]==')') // closing bracket means this (sub)expression ends
 			return str_aux;
 		else if (rpq[i] == '<') { // a predicate starts
@@ -75,7 +75,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 			if (rpq[i]=='%') { // is the predicate reversed?
 				i++; // remove %
 				bool reading_attrs = false;
-				while (i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
+				while ((unsigned)i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
 				{
 					s += rpq[i];
 					if (rpq[i] == '[') { reading_attrs = true; }
@@ -88,7 +88,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 				std::string s_aux("<");
 				s += '%';
 				bool reading_attrs = false;
-				while (i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
+				while ((unsigned)i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
 				{
 					s += rpq[i];
 					if (rpq[i] == '[') { reading_attrs = true; }

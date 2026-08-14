@@ -118,7 +118,7 @@ class bwt_nose
                 fp_C << C_a[i] << endl;
             }
             exit(1);*/
-            uint64_t t, i=0;
+            uint64_t t;
 
             while (!fp_C.eof()) {
                 fp_C >> t;
@@ -158,14 +158,14 @@ class bwt_nose
             uint64_t e = L.rank(right_end+1, value)-1;
             return pair<uint64_t, uint64_t>(s, e);
         }
-
+/*
         pair<uint64_t, uint64_t>
         backward_step_test(uint64_t left_end, uint64_t right_end, uint64_t value, 
                            uint64_t s, uint64_t e)
         {
             return pair<uint64_t, uint64_t>(s, e-1);
         }
-
+*/
         /*inline uint64_t bsearch_C(uint64_t value)
         {
             uint64_t r = C_rank(C_select0(value+1));

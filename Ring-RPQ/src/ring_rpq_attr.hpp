@@ -44,7 +44,6 @@
 #include "query_config.hpp"
 #include "parse_query_attr.cpp"
 #include "wt_helper.hpp"
-#include "selectivity.hpp"
 #include "attr_info.hpp"
 #include "load_index_util.cpp"
 
@@ -70,8 +69,10 @@ typedef std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> spo_triple_with_id;
 
 
 
+
 template<class Container = std::stack<interval_state_type>>
-class ring_rpq_attr {
+class ring_rpq_attr 
+{
 
 	// The wavelet tree L_S has been replaced with a int_vector,
 	// to make the iteration of all triples in an interval possible.
@@ -103,7 +104,7 @@ class ring_rpq_attr {
 
 public:
 
-	ring_rpq_attr(): real_max_P(0), max_P(0), max_S(0), max_O(0), nTriples(0) {}
+	ring_rpq_attr(): real_max_P(0), max_S(0), max_P(0), max_O(0), nTriples(0) {}
 
 	ring_rpq_attr(std::string filename)
 	{
@@ -219,7 +220,6 @@ public:
 		}
 
 		Data.shrink_to_fit();
-		uint64_t input_size = Data.size();
 		
 		if (verbose)
 		{
