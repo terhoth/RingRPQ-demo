@@ -49,8 +49,14 @@ enum class ParseError
 	MisplacedSquare, 
 	UnknownPredicate, 
 	UnknownAttribute,
-	InvalidCondition 
+	InvalidCondition,
+	InvalidCurlyBrackets, 
+	MissingEndpoint
 };
+
+
+
+
 // name of the auxiliary attribute used to store node labels
 const std::string NODELABEL_ATTR = "__NODELABEL__";
 // prefix for node labels

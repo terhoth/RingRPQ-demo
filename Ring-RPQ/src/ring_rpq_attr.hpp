@@ -99,7 +99,7 @@ class ring_rpq_attr
 	std::unordered_map<std::string, uint64_t> P_name_to_id;
 	std::unordered_map<uint64_t, std::string> SO_id_to_name;
 	std::unordered_map<std::string, uint64_t> SO_name_to_id;
-	std::unordered_map<std::string, AttrInfo> attr_info_map;
+	std::unordered_map<std::string, AttrInfo> A_name_to_info;
 
 	// query-specific vector containing the useful automata state sets for each bwt node
 	std::vector<word_t> B_array;
@@ -113,6 +113,8 @@ public:
 		construct(filename);
 	}
 
+
+
 	void construct(std::string filename, bool verbose = false)
 	{
 		ifstream ifs(filename.c_str());
@@ -124,10 +126,9 @@ public:
 		// Read attribute names and types, 
 		// and count how many attributes there are
 		if (verbose) cout << "preprocessing attributes..." << endl;
-		std::unordered_map<std::string, AttrInfo> attr_info_map;
 		std::vector<AttrInfo> edge_attr_infos;
 		std::vector<AttrInfo> node_attr_infos;
-		auto attr_counts = load_attribute_info(filename, attr_info_map, &edge_attr_infos, &node_attr_infos);
+		auto attr_counts = load_attribute_info(filename, A_name_to_info, &edge_attr_infos, &node_attr_infos);
 		int n_of_str_attrs = get<0>(attr_counts); 
 		int n_of_int_attrs = get<1>(attr_counts); 
 		int n_of_flt_attrs = get<2>(attr_counts); 
@@ -226,7 +227,7 @@ public:
 		if (verbose)
 		{
 			cout << "--Indexing " << Data.size() << " triples " 
-			     << "with " << attr_info_map.size() << " attributes "
+			     << "with " << A_name_to_info.size() << " attributes "
 			     << "(str: "<< n_of_str_attrs 
 			     << ", int: " << n_of_int_attrs 
 			     << ", flt: " << n_of_flt_attrs << ")" << endl;
@@ -376,6 +377,8 @@ public:
 
 	};
 
+
+
 	// Size of the index in bytes
 	// (not completely accurate due to the attributes)
 	uint64_t size() {
@@ -399,6 +402,8 @@ public:
 	uint64_t n_labels() {
 		return max_P;
 	}
+
+
 
 	void save(string filename) {
 		//L_S.save(filename + ".bwts");
@@ -448,6 +453,8 @@ public:
 		ofs << max_O << endl;
 	};
 
+
+
 	void load(string filename)
 	{	
 		// Open input files
@@ -466,11 +473,11 @@ public:
 		P_name_to_id.clear();
 		SO_id_to_name.clear();
 		SO_name_to_id.clear();
-		attr_info_map.clear();
+		A_name_to_info.clear();
 		B_array.clear();
 
 		// Get attribute info (id, Edge/Node, Str/Int/Flt)
-		load_attribute_info(filename, attr_info_map);
+		load_attribute_info(filename, A_name_to_info);
 
 		cout << "Loading L_S" << endl; fflush(stdout);
 		sdsl::load_from_file(L_S, filename + ".L_S");
@@ -479,7 +486,6 @@ public:
 		 uint64_t c;
 		 while (ifs_C_S >> c) { C_S.push_back(c); }
 		}
-		B_array = std::vector<word_t>(4 * max_P, 0);
 		
 		cout << "Loading attr.str" << endl; fflush(stdout);
 		{
@@ -540,6 +546,7 @@ public:
 		ifs >> max_P;
 		ifs >> max_O;
 
+		B_array = std::vector<word_t>(4 * max_P, 0);
 
 
 		cout << "Loading node names" << endl; fflush(stdout);
@@ -582,6 +589,76 @@ public:
 		return (pred_id > real_max_P) ? pred_id - real_max_P : pred_id + real_max_P;
 	}
 
+
+
+	ParseError evaluate(std::string line, 
+	                    std::vector<std::pair<uint64_t, uint64_t>>& output,
+	                    uint64_t bound = std::numeric_limits<uint64_t>::max(),
+	                    unsigned int timeout = TIME_OUT)
+	{
+		unordered_map<string, uint64_t> pred_map;
+		pred_map[NODE_PREDICATE] = P_name_to_id.at(NODE_PREDICATE);
+		unordered_map<string, AttrInfo> attr_map;
+		pred_map[WILDCARD_PREDICATE] = P_name_to_id.at(WILDCARD_PREDICATE);
+		std::string rpq, query, query_type;
+		vector<uint64_t> pred_vec;
+		uint64_t s_id = 0;
+		uint64_t o_id = 0;
+		vector<string> subqueries;
+
+		// separate subject, rpq and object from the query line
+		tie(s_id, rpq, o_id) = parse_subject_and_object(line, SO_name_to_id);
+		if (rpq == "")
+		{
+			return ParseError::MissingEndpoint;
+		}
+
+		// extract possible branching subqueries into separate queries
+		rpq = extract_nested_subqueries(rpq, subqueries);
+		if (rpq == "")
+		{
+			return ParseError::InvalidCurlyBrackets;
+		}
+
+		// evaluate the subqueries (if any)
+		prepare_nested_query(attr_map, subqueries.size());
+		for (unsigned int sub_q = 0; sub_q < subqueries.size(); sub_q++)
+		{
+			// parse
+			ParseError error = parse_query(subqueries.at(sub_q), query, query_type, pred_vec,
+			                               P_name_to_id, pred_map, A_name_to_info, attr_map);
+			if (error != ParseError::None)
+			{
+				return error;
+			}
+
+			// evaluate (results are stored internally)
+			bool is_trivial = run_subquery(sub_q, query, pred_map, attr_map);
+			if (is_trivial)
+			{
+				// remove requirements related to this subquery, as they are trivially true
+				auto replace_regex = regex("\\[_" + to_string(sub_q) + "_ = 1\\]");
+				for (unsigned int _q = sub_q + 1; _q < subqueries.size(); _q++)
+				{
+					subqueries.at(_q) = regex_replace(subqueries.at(_q), replace_regex, "");
+				}
+				rpq = regex_replace(rpq, replace_regex, "");
+			}
+		}
+
+
+		// evaluate the main query
+		ParseError error = parse_query(rpq, query, query_type, pred_vec,
+		                               P_name_to_id, pred_map, A_name_to_info, attr_map);
+		if (error != ParseError::None)
+		{
+			return error;
+		}
+		run_query(query, query_type, pred_vec, s_id, o_id, pred_map, attr_map, output, bound);
+		cleanup_nested_query(subqueries.size());
+
+		return ParseError::None;
+	}
 
 
 
