@@ -130,7 +130,7 @@ public:
 
 		// Read attribute names and types, 
 		// and count how many attributes there are
-		if (verbose) cout << "preprocessing attributes..." << endl;
+		if (verbose) cout << "reading attributes..." << endl;
 		std::vector<AttrInfo> edge_attr_infos;
 		std::vector<AttrInfo> node_attr_infos;
 		auto attr_counts = load_attribute_info(filename, A_name_to_info, &edge_attr_infos, &node_attr_infos);
@@ -237,7 +237,6 @@ public:
 			     << ", int: " << n_of_int_attrs 
 			     << ", flt: " << n_of_flt_attrs << ")" << endl;
 		}
-		auto data_end = timer::now();
 
 		nTriples = Data.end() - Data.begin();
 
@@ -368,15 +367,14 @@ public:
 		if (verbose) cout << "-- Index constructed successfully" << endl;
 		if (verbose)
 		{
-			int data_time = duration_cast<seconds>(data_end - start).count();
-			int initial_time = duration_cast<seconds>(sort1_start - data_end).count();
-			int sort1_time = duration_cast<seconds>(sort1_stop - sort1_start).count();
-			int construct1_time = duration_cast<seconds>(sort2_start - sort1_stop).count();
-			int sort2_time = duration_cast<seconds>(sort2_stop - sort2_start).count();
-			int construct2_time = duration_cast<seconds>(stop - sort2_stop).count();
-			printf("%d, %d, %d, %d, %d, %d\n", data_time, initial_time,
-			                                   sort1_time, construct1_time, 
-			                                   sort2_time, construct2_time);
+			int initial_time = duration_cast<milliseconds>(sort1_start - start).count();
+			int sort1_time = duration_cast<milliseconds>(sort1_stop - sort1_start).count();
+			int construct1_time = duration_cast<milliseconds>(sort2_start - sort1_stop).count();
+			int sort2_time = duration_cast<milliseconds>(sort2_stop - sort2_start).count();
+			int construct2_time = duration_cast<milliseconds>(stop - sort2_stop).count();
+			int total_time = duration_cast<milliseconds>(stop - start).count();
+			printf("Time: read %d + sort %d + construct %d + sort %d + construct %d = %d ms\n", 
+			       initial_time, sort1_time, construct1_time, sort2_time, construct2_time, total_time);
 		}
 
 	};
@@ -598,12 +596,14 @@ public:
 	// where the subject/object can be replaced with a question mark.
 	// (More detailed syntax information is in this repository's README file.)
 	// If bound is given, searches and returns only up to that many results.
-	// Quits early if the given timeout is exceeded.
-	ParseError evaluate(std::string query_line, 
+	// Quits early if the given timeout (in milliseconds) is exceeded.
+	// Returns an enum telling if a error or a timeout occurred or if the bound was reached.
+	Error evaluate(std::string query_line, 
 	                    std::vector<std::pair<std::string, std::string>>& output,
 	                    uint64_t bound = std::numeric_limits<uint64_t>::max(),
 	                    unsigned int timeout = TIME_OUT)
 	{
+		auto start_time = timer::now();
 		unordered_map<string, uint64_t> pred_map;
 		pred_map[NODE_PREDICATE] = P_name_to_id.at(NODE_PREDICATE);
 		unordered_map<string, AttrInfo> attr_map;
@@ -616,29 +616,20 @@ public:
 
 		// separate subject, rpq and object from the query line
 		tie(s_id, rpq, o_id) = parse_subject_and_object(query_line, SO_name_to_id);
-		if (rpq == "")
-		{
-			return ParseError::MissingEndpoint;
-		}
+		if (rpq == "") return Error::MissingEndpoint;
 
 		// extract possible branching subqueries into separate queries
 		rpq = extract_nested_subqueries(rpq, subqueries);
-		if (rpq == "")
-		{
-			return ParseError::InvalidCurlyBrackets;
-		}
+		if (rpq == "") return Error::InvalidCurlyBrackets;
 
 		// evaluate the subqueries (if any)
 		prepare_nested_query(attr_map, subqueries.size());
 		for (unsigned int sub_q = 0; sub_q < subqueries.size(); sub_q++)
 		{
 			// parse
-			ParseError error = parse_query(subqueries.at(sub_q), query, query_type, pred_vec,
-			                               P_name_to_id, pred_map, A_name_to_info, attr_map);
-			if (error != ParseError::None)
-			{
-				return error;
-			}
+			Error error = parse_query(subqueries.at(sub_q), query, query_type, pred_vec,
+			                          P_name_to_id, pred_map, A_name_to_info, attr_map);
+			if (error != Error::None) return error;
 
 			// evaluate (results are stored internally)
 			bool is_trivial = run_subquery(sub_q, query, pred_map, attr_map);
@@ -656,16 +647,23 @@ public:
 
 
 		// evaluate the main query
-		ParseError error = parse_query(rpq, query, query_type, pred_vec,
-		                               P_name_to_id, pred_map, A_name_to_info, attr_map);
-		if (error != ParseError::None)
-		{
-			return error;
-		}
-		run_query(query, query_type, pred_vec, s_id, o_id, pred_map, attr_map, output, bound);
+		Error error = parse_query(rpq, query, query_type, pred_vec,
+		                          P_name_to_id, pred_map, A_name_to_info, attr_map);
+		if (error != Error::None) return error;
+		run_query(query, query_type, pred_vec, s_id, o_id, 
+		          pred_map, attr_map, output, bound);
 		cleanup_nested_query(subqueries.size());
 
-		return ParseError::None;
+
+		if (duration_cast<milliseconds>(timer::now() - start_time).count() > timeout)
+		{
+			return Error::TimedOut;
+		}
+		else if (output.size() >= bound)
+		{
+			return Error::ReachedBound;
+		}
+		else return Error::None;
 	}
 
 
@@ -721,7 +719,7 @@ public:
 				}
 
 				auto time = timer::now();
-				auto time_span = duration_cast<seconds>(time - start_time);
+				auto time_span = duration_cast<milliseconds>(time - start_time);
 				if (time_span.count() > TIME_OUT) break;
 			}
 		}
@@ -1027,7 +1025,7 @@ private:
 			if (object_vector.size() >= bound) return false;
 			// check for timeout
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
@@ -1070,7 +1068,7 @@ private:
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
 			// check for timeout
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
@@ -1129,7 +1127,7 @@ private:
 			
 			if (solutions.size() >= bound) return false;
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) return true;
 		}
@@ -1181,7 +1179,7 @@ private:
 			if (path_exists) return true;
 			// check for timeout
 			stop = high_resolution_clock::now();
-			total_time = duration_cast<microseconds>(stop - start).count();
+			total_time = duration_cast<milliseconds>(stop - start).count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
 		return false;
@@ -1234,7 +1232,7 @@ private:
 
 		// initialize clock
 		auto stop = timer::now();
-		auto total_time = duration_cast<seconds>(stop - start_time).count();
+		auto total_time = duration_cast<milliseconds>(stop - start_time).count();
 		bool time_out = (total_time > TIME_OUT);
 
 		// set to keep track of duplicate results
@@ -1286,7 +1284,7 @@ private:
 						if (output.size() >= bound) return;
 					}
 					stop = timer::now();
-					total_time = duration_cast<seconds>(stop - start_time).count();
+					total_time = duration_cast<milliseconds>(stop - start_time).count();
 					time_out = (total_time > TIME_OUT);
 				}
 			}
@@ -1356,7 +1354,7 @@ private:
 
 				// check for timeout
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1385,7 +1383,7 @@ private:
 				}
 
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1406,7 +1404,7 @@ private:
 				}
 				
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1432,7 +1430,7 @@ private:
 
 				// check for timeout
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}

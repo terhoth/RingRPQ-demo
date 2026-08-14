@@ -82,8 +82,22 @@ int main(int argc, char **argv)
 		start = high_resolution_clock::now();
 		query_output.clear();
 
-		ParseError error = graph.evaluate(line, query_output, bound, TIME_OUT);
-		if (error != ParseError::None) cout << q << ";" << " Parse Error" << endl;
+		Error error = graph.evaluate(line, query_output, bound, TIME_OUT);
+		if (error != Error::None)
+		{
+			if (error == Error::TimedOut)
+			{
+				cout << "Timed out" << endl;
+			}
+			else if (error == Error::ReachedBound)
+			{
+				cout << "Reached bound for results" << endl;
+			}
+			else
+			{
+				cout << "Parse error" << endl;
+			}
+		}
 
 		// Print the results
 		
@@ -103,7 +117,8 @@ int main(int argc, char **argv)
 				i++;
 				if (i == max_results_to_print) break;
 			}
-			if (query_output.size() > max_results_to_print)
+			if (query_output.size() > max_results_to_print or
+			    query_output.size() > bound)
 			{
 				cout << "  ..." << endl;
 			}

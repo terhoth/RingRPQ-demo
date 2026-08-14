@@ -105,12 +105,21 @@ int main(int argc, char **argv)
 		q++;
 		query_output.clear();
 
-		ParseError error = graph.evaluate(line, query_output);
-		if (error != ParseError::None)
+		Error error = graph.evaluate(line, query_output);
+		if (error != Error::None)
 		{
-			cout << endl << "Parse error! " << line << endl; 	
-			++queries_failed;
-			continue;
+			if (error == Error::TimedOut)
+			{
+				cout << endl << "Timed out! " << line << endl;
+				++queries_failed;
+				continue;
+			}
+			else
+			{
+				cout << endl << "Parse error! " << line << endl; 	
+				++queries_failed;
+				continue;
+			}
 		}
 
 		// Compare output to expected answers:
