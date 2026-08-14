@@ -95,8 +95,10 @@ class ring_rpq_attr
 	uint64_t max_O;
 	uint64_t nTriples;  // number of triples
  
-	std::unordered_map<uint64_t, std::string> p_id_to_name;
-	std::unordered_map<std::string, uint64_t> p_name_to_id;
+	std::unordered_map<uint64_t, std::string> P_id_to_name;
+	std::unordered_map<std::string, uint64_t> P_name_to_id;
+	std::unordered_map<uint64_t, std::string> SO_id_to_name;
+	std::unordered_map<std::string, uint64_t> SO_name_to_id;
 	std::unordered_map<std::string, AttrInfo> attr_info_map;
 
 	// query-specific vector containing the useful automata state sets for each bwt node
@@ -447,16 +449,37 @@ public:
 	};
 
 	void load(string filename)
-	{
+	{	
+		// Open input files
+		ifstream ifs_SO(filename + ".SO", ifstream::in);
+		if (!ifs_SO.is_open()) throw invalid_argument("Could not open" + filename + ".SO");
+		ifstream ifs_P(filename + ".P", ifstream::in);
+		if (!ifs_P.is_open()) throw invalid_argument("Could not open" + filename + ".P");
+		cout << "Opened file " << filename << " successfully" << endl;
+
+		// ensure index is empty before loading
+		C_S.clear();
+		str_attributes.clear();
+		int_attributes.clear();
+		flt_attributes.clear();
+		P_id_to_name.clear();
+		P_name_to_id.clear();
+		SO_id_to_name.clear();
+		SO_name_to_id.clear();
+		attr_info_map.clear();
+		B_array.clear();
+
+		// Get attribute info (id, Edge/Node, Str/Int/Flt)
+		load_attribute_info(filename, attr_info_map);
+
 		cout << "Loading L_S" << endl; fflush(stdout);
-		//L_S.load(filename + ".bwts");
 		sdsl::load_from_file(L_S, filename + ".L_S");
 		{
 		 std::ifstream ifs_C_S(filename + ".C_S");
 		 uint64_t c;
 		 while (ifs_C_S >> c) { C_S.push_back(c); }
 		}
-		//sdsl::load_from_file(C_S, filename + ".C_S"); // C_S ei ole sdsl:stä
+		B_array = std::vector<word_t>(4 * max_P, 0);
 		
 		cout << "Loading attr.str" << endl; fflush(stdout);
 		{
@@ -517,7 +540,37 @@ public:
 		ifs >> max_P;
 		ifs >> max_O;
 
-		B_array = std::vector<word_t>(4 * max_P, 0);
+
+
+		cout << "Loading node names" << endl; fflush(stdout);
+		SO_name_to_id.reserve(std::max(max_S, max_O));
+		SO_id_to_name.reserve(std::max(max_S, max_O));
+		uint64_t id;
+		string name;
+		while (ifs_SO >> id >> name)
+		{
+			SO_name_to_id[name] = id;
+			SO_id_to_name[id] = name;
+			ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
+		}
+		cout << "Loading predicate names" << endl; fflush(stdout);
+		P_name_to_id.reserve(real_max_P);
+		P_id_to_name.reserve(real_max_P);
+		uint64_t max_p = 0;
+		while (ifs_P >> id >> name)
+		{
+			if (id == 0) throw std::invalid_argument("predicate ids must nonzero");
+			P_name_to_id[name] = id;
+			P_id_to_name[id] = name;
+			if (id > max_p) max_p = id;
+			ifs_P.ignore(numeric_limits<streamsize>::max(), '\n');
+		}
+		// give the node symbol an unused id
+		P_name_to_id[NODE_PREDICATE] = max_p + 1;
+		P_id_to_name[max_p + 1] = NODE_PREDICATE;
+		// give the wildcard edge an unused id
+		P_name_to_id[WILDCARD_PREDICATE] = 0;
+		P_id_to_name[0] = WILDCARD_PREDICATE;
 	};
 
 	uint64_t pred_selectivity(uint64_t pred_id) {

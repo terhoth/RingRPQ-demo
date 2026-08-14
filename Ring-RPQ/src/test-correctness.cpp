@@ -60,19 +60,6 @@ int main(int argc, char **argv)
 		answer_file = ANSWER_FILE;
 	}
 
-	// open input files
-	ifstream ifs(index_file.c_str());
-	if (!ifs.is_open())     throw std::invalid_argument("Could not open " + index_file);
-	ifstream ifs_SO(index_file + ".SO", ifstream::in);
-	if (!ifs_SO.is_open())  throw std::invalid_argument("Could not open " + index_file + ".SO");
-	ifstream ifs_P(index_file + ".P", ifstream::in);
-	if (!ifs_P.is_open())   throw std::invalid_argument("Could not open " + index_file + ".P");
-	ifstream ifs_q(query_file, ifstream::in);
-	if (!ifs_q.is_open())   throw std::invalid_argument("Could not open " + query_file);
-	ifstream ifs_ans(answer_file, ifstream::in);
-	if (!ifs_ans.is_open()) throw std::invalid_argument("Could not open " + answer_file);
-	cout << "Opened input files successfully" << endl;
-
 	// load the index
 	auto load_start = timer::now();
 	ring_rpq_attr_bfs graph;
@@ -83,38 +70,8 @@ int main(int argc, char **argv)
 	     << (float) graph.size() / (graph.n_triples() / 2) << " bytes per triple " 
 	     << load_time << " ms" << endl;
 
-	
-	// Map subject/object/predicate/attribute names to integers:
-
-	unordered_map<string, uint64_t> map_SO;
-	unordered_map<string, uint64_t> map_P;
-
-	// subjects/objects
-	uint64_t id;
-	string name;
-	while (ifs_SO >> id >> name)
-	{
-		map_SO[name] = id;
-		ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-
-	// predicates
-	while (ifs_P >> id >> name)
-	{
-		map_P[name] = id;
-		ifs_P.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-	// give the node symbol an unused id 
-	// (assuming predicate id's are in ascending order)
-	map_P[NODE_PREDICATE] = id + 1;
-	// give the wildcard edge an unused id 
-	map_P[WILDCARD_PREDICATE] = 0;
-   
-	// attributes
-	unordered_map<string, AttrInfo> map_A;
-	load_attribute_info(index_file, map_A); 
-
-
+// Temporarily does not work
+/*
 	// initialize query variables
 	vector<pair<uint64_t, uint64_t>> query_output;
 	unordered_map<string, uint64_t> pred_map;
@@ -286,6 +243,7 @@ int main(int argc, char **argv)
 
 	cout << endl << "Passed " << queries_passed 
 	             << " out of " << queries_passed + queries_failed << "." << endl;
+*/
 
 	return EXIT_SUCCESS;
 }

@@ -48,58 +48,18 @@ int main(int argc, char **argv)
 		bound = stoul(argv[4]);
 	}
 
-	// Open input files
-	string filename = argv[1];
-	ifstream ifs(filename.c_str());
-	if (!ifs.is_open()) throw invalid_argument("Could not open" + filename);
-	ifstream ifs_SO(filename + ".SO", ifstream::in);
-	if (!ifs_SO.is_open()) throw invalid_argument("Could not open" + filename + ".SO");
-	ifstream ifs_P(filename + ".P", ifstream::in);
-	if (!ifs_P.is_open()) throw invalid_argument("Could not open" + filename + ".P");
-	ifstream ifs_q(argv[2], ifstream::in);
-	if (!ifs_q.is_open()) throw invalid_argument("Could not open" + string(argv[2]));
-	cout << "Opened file " << filename << " successfully" << endl;
-
-	// Get attribute info (id, Edge/Node, Str/Int/Flt)
-	unordered_map<string, AttrInfo> map_A;
-	load_attribute_info(filename, map_A);
-
 	// Load the index
 	auto load_start = timer::now();
 	ring_rpq_attr_bfs graph;
-	graph.load(filename);
+	graph.load(argv[1]);
 	auto load_end = timer::now();
 	int load_time = duration_cast<milliseconds>(load_end - load_start).count();
 	cout << "  Index loaded " 
 	     << (float) graph.size() / (graph.n_triples() / 2) << " bytes per triple " 
 	     << load_time << " ms" << endl;
 
-	// Map names to ids
-	unordered_map<string, uint64_t> map_SO;
-	unordered_map<uint64_t, string> map_SO_to_name;
-	unordered_map<string, uint64_t> map_P;
-	uint64_t id;
-	string name;
-	while (ifs_SO >> id >> name)
-	{
-		map_SO[name] = id;
-		map_SO_to_name[id] = name;
-		ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-	uint64_t max_p = 0;
-	while (ifs_P >> id >> name)
-	{
-		map_P[name] = id;
-		if (id > max_p) max_p = id;
-		ifs_P.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-	// give the node symbol an unused id
-	map_P[NODE_PREDICATE] = max_p + 1;
-    // give the wildcard edge an unused id
-    map_P[WILDCARD_PREDICATE] = 0;
-
-
-	
+// Temporarily does not work
+/*	
 	// Initialize query variables
 	vector<pair<uint64_t, uint64_t>> query_output;
 	unordered_map<string, uint64_t> pred_map;
@@ -222,7 +182,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-
+*/
 	return EXIT_SUCCESS;
 }
 
