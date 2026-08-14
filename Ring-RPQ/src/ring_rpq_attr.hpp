@@ -114,7 +114,12 @@ public:
 	}
 
 
-
+	// Constructs the ring index based on data from the given file.
+	// Expects the file to consist of whitespace-separated rows,
+	// each containing a triple and edge attribute values.
+	// Also expects to find files filename.P, filename.SO and possibly filename.A.
+	// (More information about data format in the README file in Ring-RPQ directory.)
+	// Note that after construction the index still needs to saved with method save.
 	void construct(std::string filename, bool verbose = false)
 	{
 		ifstream ifs(filename.c_str());
@@ -156,7 +161,7 @@ public:
 		real_max_P = max_p + 1;
 		max_P = max_p + 1;
 
-		cout << "reading triples..." << endl;
+		if (verbose) cout << "reading triples..." << endl;
 		uint64_t s, o;
 		uint64_t triple_id = 0;
 		string str_value;
@@ -193,7 +198,7 @@ public:
 		}
 
 		// Read node attributes:
-		cout << "reading nodes..." << endl;
+		if (verbose) cout << "reading nodes..." << endl;
 		ifstream SO_ifs((filename + ".SO").c_str());
 		uint64_t node_id;
 		while (SO_ifs >> node_id)
@@ -236,8 +241,7 @@ public:
 
 		nTriples = Data.end() - Data.begin();
 
-		if (verbose) cout << "  > Determining number of elements per symbol";
-		fflush(stdout);
+		if (verbose) cout << "  > Determining number of elements per symbol" << flush;
 		uint64_t alphabet_SO = (max_S < max_O) ? max_O : max_S;
 
 		std::vector<uint32_t> M_O(alphabet_SO + 1, 0), M_P(max_P + 1, 0);
@@ -382,9 +386,6 @@ public:
 	// Size of the index in bytes
 	// (not completely accurate due to the attributes)
 	uint64_t size() {
-		//cout << "L_S.size() = " << L_S.size() << " bytes" << endl;
-		//cout << "L_P.size() = " << L_P.size() << " bytes" << endl;
-		//cout << "nTriples = " << nTriples << endl;
 		unsigned int attrs_size = 0;
 		for (unsigned int a = 0; a < str_attributes.size(); a++)
 			attrs_size += str_attributes.at(a).size() * sizeof(std::string);
@@ -404,9 +405,8 @@ public:
 	}
 
 
-
+	// Saves the index structure into the directory of the given data file.
 	void save(string filename) {
-		//L_S.save(filename + ".bwts");
 		sdsl::store_to_file(L_S, filename + ".L_S");
 		
 		std::ofstream fp_C(filename + ".C_S");
@@ -454,15 +454,16 @@ public:
 	};
 
 
-
-	void load(string filename)
+	// Loads an index structure that was saved with method save (above).
+	// Query evaluation is possible after loading.
+	void load(string filename, bool verbose = false)
 	{	
 		// Open input files
 		ifstream ifs_SO(filename + ".SO", ifstream::in);
 		if (!ifs_SO.is_open()) throw invalid_argument("Could not open" + filename + ".SO");
 		ifstream ifs_P(filename + ".P", ifstream::in);
 		if (!ifs_P.is_open()) throw invalid_argument("Could not open" + filename + ".P");
-		cout << "Opened file " << filename << " successfully" << endl;
+		if (verbose) cout << "Opened file " << filename << " successfully" << endl;
 
 		// ensure index is empty before loading
 		C_S.clear();
@@ -479,7 +480,7 @@ public:
 		// Get attribute info (id, Edge/Node, Str/Int/Flt)
 		load_attribute_info(filename, A_name_to_info);
 
-		cout << "Loading L_S" << endl; fflush(stdout);
+		if (verbose) cout << "Loading L_S" << endl;
 		sdsl::load_from_file(L_S, filename + ".L_S");
 		{
 		 std::ifstream ifs_C_S(filename + ".C_S");
@@ -487,7 +488,7 @@ public:
 		 while (ifs_C_S >> c) { C_S.push_back(c); }
 		}
 		
-		cout << "Loading attr.str" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.str" << endl;
 		{
 		 std::ifstream ifs_attr_str(filename + ".attr.str");
 		 unsigned int map_size;
@@ -503,7 +504,7 @@ public:
 			}
 		 }
 		}		
-		cout << "Loading attr.int" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.int" << endl;
 		{
 		 std::ifstream ifs_attr_int(filename + ".attr.int");
 		 unsigned int map_size;
@@ -519,7 +520,7 @@ public:
 			}
 		 }
 		}
-		cout << "Loading attr.flt" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.flt" << endl;
 		{
 		 std::ifstream ifs_attr_flt(filename + ".attr.flt");
 		 unsigned int map_size;
@@ -536,9 +537,9 @@ public:
 		 }
 		}
 
-		cout << "Loading L_P" << endl; fflush(stdout);
+		if (verbose) cout << "Loading L_P" << endl;
 		L_P.load(filename + ".bwtp");
-		cout << "Loading done" << endl; fflush(stdout);
+		if (verbose) cout << "Loading done" << endl;
 		std::ifstream ifs(filename + ".nTriples");
 		ifs >> nTriples;
 		ifs >> real_max_P;
@@ -549,7 +550,7 @@ public:
 		B_array = std::vector<word_t>(4 * max_P, 0);
 
 
-		cout << "Loading node names" << endl; fflush(stdout);
+		if (verbose) cout << "Loading node names" << endl;
 		SO_name_to_id.reserve(std::max(max_S, max_O));
 		SO_id_to_name.reserve(std::max(max_S, max_O));
 		uint64_t id;
@@ -560,7 +561,7 @@ public:
 			SO_id_to_name[id] = name;
 			ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
 		}
-		cout << "Loading predicate names" << endl; fflush(stdout);
+		if (verbose) cout << "Loading predicate names" << endl;
 		P_name_to_id.reserve(real_max_P);
 		P_id_to_name.reserve(real_max_P);
 		uint64_t max_p = 0;
@@ -1537,9 +1538,6 @@ private:
 
 
 
-
-
-public:
 
 	// Evaluates the given regular path query.
 	// Collects results in output as pairs of path endpoint names.
