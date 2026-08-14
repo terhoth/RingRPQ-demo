@@ -1310,6 +1310,7 @@ private:
 					// run single predicate query (var to const) to find subjects
 					single_predicate_query(p, true, 0, obj, attributes_map, attr_acceptors, output);
 					if (output.size() >= bound) return;
+					result_set.insert(obj);
 				}
 				
 				stop = timer::now();

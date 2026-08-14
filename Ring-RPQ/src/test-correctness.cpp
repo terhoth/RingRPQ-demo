@@ -60,6 +60,12 @@ int main(int argc, char **argv)
 		answer_file = ANSWER_FILE;
 	}
 
+	// open input files
+	ifstream ifs_q(query_file);
+	if (!ifs_q.is_open())   throw std::invalid_argument("Could not open" + query_file);
+	ifstream ifs_ans(answer_file);
+	if (!ifs_ans.is_open()) throw std::invalid_argument("Could not open" + answer_file);
+
 	// load the index
 	auto load_start = timer::now();
 	ring_rpq_attr_bfs graph;
@@ -70,17 +76,9 @@ int main(int argc, char **argv)
 	     << (float) graph.size() / (graph.n_triples() / 2) << " bytes per triple " 
 	     << load_time << " ms" << endl;
 
-// Temporarily does not work
-/*
 	// initialize query variables
 	vector<pair<uint64_t, uint64_t>> query_output;
-	unordered_map<string, uint64_t> pred_map;
-	unordered_map<string, AttrInfo> attr_map;
-	string line, rpq, query, query_type;
-	vector<uint64_t> pred_vec;
-	uint64_t s_id = 0;
-	uint64_t o_id = 0;
-	vector<string> subqueries;
+	string line;
 
 	// Parse and run the queries
 	cout << "Starting tests" << endl;
@@ -92,84 +90,15 @@ int main(int argc, char **argv)
 		if (line.length() == 0 or line.at(0) == '#') continue;
 
 		q++;
-
-		// reset query-specific variables
-		pred_map.clear();
-		pred_map[NODE_PREDICATE] = map_P.at(NODE_PREDICATE);
-		pred_map[WILDCARD_PREDICATE] = map_P.at(WILDCARD_PREDICATE);
-		attr_map.clear();
-		rpq.clear();
-		query.clear();
-		query_type.clear();
-		pred_vec.clear();
-		subqueries.clear();
 		query_output.clear();
 
-		// separate subject, rpq and object from the query line
-		tie(s_id, rpq, o_id) = parse_subject_and_object(line, map_SO);
-		if (rpq == "") 
-		{ 
-			cout << endl << "Fail! " << line << endl;
-			cout << "Parse error: could not find subject and/or object" << endl << endl; 
-			queries_failed++;
-			continue; 
-		}
-
-		// extract possible branching subqueries into separate queries
-		rpq = extract_nested_subqueries(rpq, subqueries);
-		if (rpq == "") 
-		{ 
-			cout << endl << "Fail! " << line << endl;
-			cout << "Parse error: mismatched or misplaced curly brackets" << endl << endl; 
-			queries_failed++;
-			continue; 
-		}
-		
-		// evaluate the subqueries (if any)
-		graph.prepare_nested_query(attr_map, subqueries.size());
-		for (unsigned int sub_q = 0; sub_q < subqueries.size(); sub_q++)
-		{	
-			// parse
-			ParseError error = parse_query(subqueries.at(sub_q), query, 
-			                               query_type, pred_vec, 
-			                               map_P, pred_map, map_A, attr_map);
-			if (error != ParseError::None)
-			{
-				cout << endl << "Fail! " << line << " (subquery " << sub_q << ")" << endl;
-				cout << "Parse error: " << int(error) << endl << endl;
-				queries_failed++;
-				continue;
-			}
-
-			// evaluate
-			bool is_trivial = graph.run_subquery(sub_q, query, pred_map, attr_map);
-			if (is_trivial)
-			{		
-				// remove requirements related to this subquery, as they are trivially true
-				auto replace_regex = regex("\\[_" + to_string(sub_q) + "_ = 1\\]"); 
-				for (unsigned int _q = sub_q + 1; _q < subqueries.size(); _q++)
-				{
-					subqueries.at(_q) = regex_replace(subqueries.at(_q), replace_regex, "");
-				}
-				rpq = regex_replace(rpq, replace_regex, "");
-			}
-		}
-
-		// evaluate the main query
-		ParseError error = parse_query(rpq, query, query_type, pred_vec, 
-		                               map_P, pred_map, map_A, attr_map);
+		ParseError error = graph.evaluate(line, query_output);
 		if (error != ParseError::None)
 		{
-			cout << endl << "Fail! " << line << endl;
-			cout << "Parse error: " << int(error) << endl << endl;
-			queries_failed++;
+			cout << endl << "Parse error! " << line << endl; 	
+			++queries_failed;
 			continue;
 		}
-		graph.run_query(query, query_type, pred_vec, s_id, o_id, 
-						pred_map, attr_map, query_output);
-		graph.cleanup_nested_query(subqueries.size());
-
-
 
 		// Compare output to expected answers:
 
@@ -205,7 +134,16 @@ int main(int argc, char **argv)
 		}
 		
 		// compare and report
-		if (output_set != answer_set)
+		if (output_set.size() != query_output.size())
+		{
+			++queries_failed;
+			cout << endl << "Fail! " << line << endl;
+			cout << "Found " << output_set.size() << " results, " 
+			     << "expected " << answer_set.size() << endl;
+			cout << "Duplicate results!" << endl;
+			cout << endl;
+		}
+		else if (output_set != answer_set)
 		{
 			++queries_failed;
 
@@ -243,7 +181,6 @@ int main(int argc, char **argv)
 
 	cout << endl << "Passed " << queries_passed 
 	             << " out of " << queries_passed + queries_failed << "." << endl;
-*/
 
 	return EXIT_SUCCESS;
 }
