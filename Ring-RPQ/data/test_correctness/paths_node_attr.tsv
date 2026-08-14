@@ -1,0 +1,338 @@
+# VAR TO VAR
+# without attributes
+?x <&A> ?y 
+?x <&B> ?y 
+?x <&C> ?y 
+?x <&D> ?y 
+?x <&E> ?y 
+?x <&F> ?y 
+?x <&G> ?y 
+?x <&H> ?y 
+?x <&I> ?y 
+?x <&> ?y 
+# single-edge
+# ...source
+?x <&[nodelabel = A]>/<a> ?y 
+?x <&[nodelabel = A]>/<b> ?y 
+?x <&[nodelabel = A]>/<c> ?y 
+?x <&[nodelabel = A]>/<d> ?y 
+?x <&[nodelabel = A]>/<e> ?y 
+?x <&[nodelabel = A]>/<f> ?y 
+?x <&[nodelabel = A]>/<g> ?y 
+?x <&[nodelabel = A]>/<h> ?y 
+?x <&[nodelabel = A]>/<i> ?y 
+?x <&[nodelabel = A]>/<any> ?y 
+?x <&[nodelabel = B]>/<a> ?y 
+?x <&[nodelabel = B]>/<b> ?y 
+?x <&[nodelabel = B]>/<c> ?y 
+?x <&[nodelabel = B]>/<d> ?y 
+?x <&[nodelabel = B]>/<e> ?y 
+?x <&[nodelabel = B]>/<f> ?y 
+?x <&[nodelabel = B]>/<g> ?y 
+?x <&[nodelabel = B]>/<h> ?y 
+?x <&[nodelabel = B]>/<i> ?y 
+?x <&[nodelabel = B]>/<any> ?y 
+?x <&[nodelabel = C]>/<a> ?y 
+?x <&[nodelabel = C]>/<b> ?y 
+?x <&[nodelabel = C]>/<c> ?y 
+?x <&[nodelabel = C]>/<d> ?y 
+?x <&[nodelabel = C]>/<e> ?y 
+?x <&[nodelabel = C]>/<f> ?y 
+?x <&[nodelabel = C]>/<g> ?y 
+?x <&[nodelabel = C]>/<h> ?y 
+?x <&[nodelabel = C]>/<i> ?y 
+?x <&[nodelabel = C]>/<any> ?y 
+?x <&[nodelabel = D]>/<a> ?y 
+?x <&[nodelabel = D]>/<b> ?y 
+?x <&[nodelabel = D]>/<c> ?y 
+?x <&[nodelabel = D]>/<d> ?y 
+?x <&[nodelabel = D]>/<e> ?y 
+?x <&[nodelabel = D]>/<f> ?y 
+?x <&[nodelabel = D]>/<g> ?y 
+?x <&[nodelabel = D]>/<h> ?y 
+?x <&[nodelabel = D]>/<i> ?y 
+?x <&[nodelabel = D]>/<any> ?y 
+?x <&[nodelabel = E]>/<a> ?y 
+?x <&[nodelabel = E]>/<b> ?y 
+?x <&[nodelabel = E]>/<c> ?y 
+?x <&[nodelabel = E]>/<d> ?y 
+?x <&[nodelabel = E]>/<e> ?y 
+?x <&[nodelabel = E]>/<f> ?y 
+?x <&[nodelabel = E]>/<g> ?y 
+?x <&[nodelabel = E]>/<h> ?y 
+?x <&[nodelabel = E]>/<i> ?y 
+?x <&[nodelabel = E]>/<any> ?y 
+?x <&[nodelabel = F]>/<a> ?y 
+?x <&[nodelabel = F]>/<b> ?y 
+?x <&[nodelabel = F]>/<c> ?y 
+?x <&[nodelabel = F]>/<d> ?y 
+?x <&[nodelabel = F]>/<e> ?y 
+?x <&[nodelabel = F]>/<f> ?y 
+?x <&[nodelabel = F]>/<g> ?y 
+?x <&[nodelabel = F]>/<h> ?y 
+?x <&[nodelabel = F]>/<i> ?y 
+?x <&[nodelabel = F]>/<any> ?y 
+?x <&[nodelabel = G]>/<a> ?y 
+?x <&[nodelabel = G]>/<b> ?y 
+?x <&[nodelabel = G]>/<c> ?y 
+?x <&[nodelabel = G]>/<d> ?y 
+?x <&[nodelabel = G]>/<e> ?y 
+?x <&[nodelabel = G]>/<f> ?y 
+?x <&[nodelabel = G]>/<g> ?y 
+?x <&[nodelabel = G]>/<h> ?y 
+?x <&[nodelabel = G]>/<i> ?y 
+?x <&[nodelabel = G]>/<any> ?y 
+?x <&[nodelabel = H]>/<a> ?y 
+?x <&[nodelabel = H]>/<b> ?y 
+?x <&[nodelabel = H]>/<c> ?y 
+?x <&[nodelabel = H]>/<d> ?y 
+?x <&[nodelabel = H]>/<e> ?y 
+?x <&[nodelabel = H]>/<f> ?y 
+?x <&[nodelabel = H]>/<g> ?y 
+?x <&[nodelabel = H]>/<h> ?y 
+?x <&[nodelabel = H]>/<i> ?y 
+?x <&[nodelabel = H]>/<any> ?y 
+?x <&[nodelabel = I]>/<a> ?y 
+?x <&[nodelabel = I]>/<b> ?y 
+?x <&[nodelabel = I]>/<c> ?y 
+?x <&[nodelabel = I]>/<d> ?y 
+?x <&[nodelabel = I]>/<e> ?y 
+?x <&[nodelabel = I]>/<f> ?y 
+?x <&[nodelabel = I]>/<g> ?y 
+?x <&[nodelabel = I]>/<h> ?y 
+?x <&[nodelabel = I]>/<i> ?y 
+?x <&[nodelabel = I]>/<any> ?y 
+# ...target
+?x <a>/<&[nodelabel = A]> ?y 
+?x <b>/<&[nodelabel = A]> ?y 
+?x <c>/<&[nodelabel = A]> ?y 
+?x <d>/<&[nodelabel = A]> ?y 
+?x <e>/<&[nodelabel = A]> ?y 
+?x <f>/<&[nodelabel = A]> ?y 
+?x <g>/<&[nodelabel = A]> ?y 
+?x <h>/<&[nodelabel = A]> ?y 
+?x <i>/<&[nodelabel = A]> ?y 
+?x <any>/<&[nodelabel = A]> ?y 
+?x <a>/<&[nodelabel = B]> ?y 
+?x <b>/<&[nodelabel = B]> ?y 
+?x <c>/<&[nodelabel = B]> ?y 
+?x <d>/<&[nodelabel = B]> ?y 
+?x <e>/<&[nodelabel = B]> ?y 
+?x <f>/<&[nodelabel = B]> ?y 
+?x <g>/<&[nodelabel = B]> ?y 
+?x <h>/<&[nodelabel = B]> ?y 
+?x <i>/<&[nodelabel = B]> ?y 
+?x <any>/<&[nodelabel = B]> ?y 
+?x <a>/<&[nodelabel = C]> ?y 
+?x <b>/<&[nodelabel = C]> ?y 
+?x <c>/<&[nodelabel = C]> ?y 
+?x <d>/<&[nodelabel = C]> ?y 
+?x <e>/<&[nodelabel = C]> ?y 
+?x <f>/<&[nodelabel = C]> ?y 
+?x <g>/<&[nodelabel = C]> ?y 
+?x <h>/<&[nodelabel = C]> ?y 
+?x <i>/<&[nodelabel = C]> ?y 
+?x <any>/<&[nodelabel = C]> ?y 
+?x <a>/<&[nodelabel = D]> ?y 
+?x <b>/<&[nodelabel = D]> ?y 
+?x <c>/<&[nodelabel = D]> ?y 
+?x <d>/<&[nodelabel = D]> ?y 
+?x <e>/<&[nodelabel = D]> ?y 
+?x <f>/<&[nodelabel = D]> ?y 
+?x <g>/<&[nodelabel = D]> ?y 
+?x <h>/<&[nodelabel = D]> ?y 
+?x <i>/<&[nodelabel = D]> ?y 
+?x <any>/<&[nodelabel = D]> ?y 
+?x <a>/<&[nodelabel = E]> ?y 
+?x <b>/<&[nodelabel = E]> ?y 
+?x <c>/<&[nodelabel = E]> ?y 
+?x <d>/<&[nodelabel = E]> ?y 
+?x <e>/<&[nodelabel = E]> ?y 
+?x <f>/<&[nodelabel = E]> ?y 
+?x <g>/<&[nodelabel = E]> ?y 
+?x <h>/<&[nodelabel = E]> ?y 
+?x <i>/<&[nodelabel = E]> ?y 
+?x <any>/<&[nodelabel = E]> ?y 
+?x <a>/<&[nodelabel = F]> ?y 
+?x <b>/<&[nodelabel = F]> ?y 
+?x <c>/<&[nodelabel = F]> ?y 
+?x <d>/<&[nodelabel = F]> ?y 
+?x <e>/<&[nodelabel = F]> ?y 
+?x <f>/<&[nodelabel = F]> ?y 
+?x <g>/<&[nodelabel = F]> ?y 
+?x <h>/<&[nodelabel = F]> ?y 
+?x <i>/<&[nodelabel = F]> ?y 
+?x <any>/<&[nodelabel = F]> ?y 
+?x <a>/<&[nodelabel = G]> ?y 
+?x <b>/<&[nodelabel = G]> ?y 
+?x <c>/<&[nodelabel = G]> ?y 
+?x <d>/<&[nodelabel = G]> ?y 
+?x <e>/<&[nodelabel = G]> ?y 
+?x <f>/<&[nodelabel = G]> ?y 
+?x <g>/<&[nodelabel = G]> ?y 
+?x <h>/<&[nodelabel = G]> ?y 
+?x <i>/<&[nodelabel = G]> ?y 
+?x <any>/<&[nodelabel = G]> ?y 
+?x <a>/<&[nodelabel = H]> ?y 
+?x <b>/<&[nodelabel = H]> ?y 
+?x <c>/<&[nodelabel = H]> ?y 
+?x <d>/<&[nodelabel = H]> ?y 
+?x <e>/<&[nodelabel = H]> ?y 
+?x <f>/<&[nodelabel = H]> ?y 
+?x <g>/<&[nodelabel = H]> ?y 
+?x <h>/<&[nodelabel = H]> ?y 
+?x <i>/<&[nodelabel = H]> ?y 
+?x <any>/<&[nodelabel = H]> ?y 
+?x <a>/<&[nodelabel = I]> ?y 
+?x <b>/<&[nodelabel = I]> ?y 
+?x <c>/<&[nodelabel = I]> ?y 
+?x <d>/<&[nodelabel = I]> ?y 
+?x <e>/<&[nodelabel = I]> ?y 
+?x <f>/<&[nodelabel = I]> ?y 
+?x <g>/<&[nodelabel = I]> ?y 
+?x <h>/<&[nodelabel = I]> ?y 
+?x <i>/<&[nodelabel = I]> ?y 
+?x <any>/<&[nodelabel = I]> ?y 
+# reversed...
+# ...source
+?x <&[nodelabel = A]>/<%a> ?y 
+?x <&[nodelabel = B]>/<%b> ?y 
+?x <&[nodelabel = C]>/<%c> ?y 
+?x <&[nodelabel = D]>/<%d> ?y 
+?x <&[nodelabel = E]>/<%e> ?y 
+?x <&[nodelabel = F]>/<%f> ?y 
+?x <&[nodelabel = G]>/<%g> ?y 
+?x <&[nodelabel = H]>/<%h> ?y 
+?x <&[nodelabel = I]>/<%i> ?y 
+# ...target
+?x <%a>/<&[nodelabel = A]> ?y 
+?x <%b>/<&[nodelabel = B]> ?y 
+?x <%c>/<&[nodelabel = C]> ?y 
+?x <%d>/<&[nodelabel = D]> ?y 
+?x <%e>/<&[nodelabel = E]> ?y 
+?x <%f>/<&[nodelabel = F]> ?y 
+?x <%g>/<&[nodelabel = G]> ?y 
+?x <%h>/<&[nodelabel = H]> ?y 
+?x <%i>/<&[nodelabel = I]> ?y 
+# two-edge...
+# ...source
+?x <&[nodelabel = A]>/<a>/<&[nodelabel = A]>/<a> ?y 
+?x <&[nodelabel = A]>/<a>/<&[nodelabel = D]>/<d> ?y 
+?x <&[nodelabel = A]>/<a>/<&[nodelabel = E]>/<e> ?y 
+?x <&[nodelabel = A]>/<a>/<&[nodelabel = I]>/<i> ?y 
+?x <&[nodelabel = B]>/<b>/<&[nodelabel = B]>/<b> ?y 
+?x <&[nodelabel = B]>/<b>/<&[nodelabel = C]>/<c> ?y 
+?x <&[nodelabel = F]>/<f>/<&[nodelabel = F]>/<f> ?y 
+?x <&[nodelabel = F]>/<f>/<&[nodelabel = G]>/<g> ?y 
+?x <&[nodelabel = F]>/<f>/<&[nodelabel = H]>/<h> ?y 
+# ...target
+?x <a>/<&[nodelabel = A]>/<a>/<&[nodelabel = A]> ?y 
+?x <a>/<&[nodelabel = A]>/<d>/<&[nodelabel = D]> ?y 
+?x <a>/<&[nodelabel = A]>/<e>/<&[nodelabel = E]> ?y 
+?x <a>/<&[nodelabel = A]>/<i>/<&[nodelabel = I]> ?y 
+?x <b>/<&[nodelabel = B]>/<b>/<&[nodelabel = B]> ?y 
+?x <b>/<&[nodelabel = B]>/<c>/<&[nodelabel = C]> ?y 
+?x <f>/<&[nodelabel = F]>/<f>/<&[nodelabel = F]> ?y 
+?x <f>/<&[nodelabel = F]>/<g>/<&[nodelabel = G]> ?y 
+?x <f>/<&[nodelabel = F]>/<h>/<&[nodelabel = H]> ?y 
+# ...both
+?x <&[nodelabel = A]>/<a>/<a>/<&[nodelabel = A]> ?y 
+?x <&[nodelabel = A]>/<a>/<d>/<&[nodelabel = D]> ?y 
+?x <&[nodelabel = A]>/<a>/<e>/<&[nodelabel = E]> ?y 
+?x <&[nodelabel = A]>/<a>/<i>/<&[nodelabel = I]> ?y 
+?x <&[nodelabel = B]>/<b>/<b>/<&[nodelabel = B]> ?y 
+?x <&[nodelabel = B]>/<b>/<c>/<&[nodelabel = C]> ?y 
+?x <&[nodelabel = F]>/<f>/<f>/<&[nodelabel = F]> ?y 
+?x <&[nodelabel = F]>/<f>/<g>/<&[nodelabel = G]> ?y 
+?x <&[nodelabel = F]>/<f>/<h>/<&[nodelabel = H]> ?y 
+# transitive closure
+?x (<&[nodetype = root]>/<any>)+ ?y 
+?x (<&[nodetype = sink]>/<any>)+ ?y 
+?x (<&[nodetype = core]>/<any>)+ ?y 
+?x (<&[nodetype = link]>/<any>)+ ?y 
+?x (<any>/<&[nodetype = root]>)+ ?y 
+?x (<any>/<&[nodetype = sink]>)+ ?y 
+?x (<any>/<&[nodetype = core]>)+ ?y 
+?x (<any>/<&[nodetype = link]>)+ ?y 
+# reflexive-transitive closure
+?x (<&[nodetype = root]>/<any>)* ?y 
+?x (<&[nodetype = sink]>/<any>)* ?y 
+?x (<&[nodetype = core]>/<any>)* ?y 
+?x (<&[nodetype = link]>/<any>)* ?y 
+?x (<any>/<&[nodetype = root]>)* ?y 
+?x (<any>/<&[nodetype = sink]>)* ?y 
+?x (<any>/<&[nodetype = core]>)* ?y 
+?x (<any>/<&[nodetype = link]>)* ?y 
+# union...
+# ...source
+?x (<&[nodelabel = A]>/<a>)|(<&[nodelabel = A]>/<a>) ?y 
+?x (<&[nodelabel = A]>/<a>)|(<&[nodelabel = D]>/<d>) ?y 
+?x (<&[nodelabel = A]>/<a>)|(<&[nodelabel = E]>/<e>) ?y 
+?x (<&[nodelabel = A]>/<a>)|(<&[nodelabel = I]>/<i>) ?y 
+?x (<&[nodelabel = B]>/<b>)|(<&[nodelabel = B]>/<b>) ?y 
+?x (<&[nodelabel = B]>/<b>)|(<&[nodelabel = C]>/<c>) ?y 
+?x (<&[nodelabel = B]>/<b>)|(<&[nodelabel = F]>/<f>) ?y 
+?x (<&[nodelabel = B]>/<b>)|(<&[nodelabel = G]>/<g>) ?y 
+?x (<&[nodelabel = B]>/<b>)|(<&[nodelabel = H]>/<h>) ?y 
+# ...target
+?x (<a>/<&[nodelabel = A]>)|(<a>/<&[nodelabel = A]>) ?y 
+?x (<a>/<&[nodelabel = A]>)|(<d>/<&[nodelabel = D]>) ?y 
+?x (<a>/<&[nodelabel = A]>)|(<e>/<&[nodelabel = E]>) ?y 
+?x (<a>/<&[nodelabel = A]>)|(<i>/<&[nodelabel = I]>) ?y 
+?x (<b>/<&[nodelabel = B]>)|(<b>/<&[nodelabel = B]>) ?y 
+?x (<b>/<&[nodelabel = B]>)|(<c>/<&[nodelabel = C]>) ?y 
+?x (<b>/<&[nodelabel = B]>)|(<f>/<&[nodelabel = F]>) ?y 
+?x (<b>/<&[nodelabel = B]>)|(<g>/<&[nodelabel = G]>) ?y 
+?x (<b>/<&[nodelabel = B]>)|(<h>/<&[nodelabel = H]>) ?y 
+# complex...
+# ...structurally
+?x (<&[nodetype = core]>/<b>/<&[nodetype = core]>/<c>)+ ?y 
+?x (<g>/<&[nodetype = core]>/<h>/<&[nodetype = link]>)+ ?y 
+?x ((<&[nodetype = core]>/<b>)|(<g>/<&[nodetype = core]>))+ ?y 
+?x ((<c>/<&[nodetype = core]>)|(<f>/<&[nodetype = link]>))+ ?y 
+?x <&[nodetype = root]>/<a>/(<&[nodetype = core]>/<b>)+/<&[nodetype = link]>/<f> ?y 
+?x <c>/<&[nodetype = core]>/(<h>/<&[nodetype = link]>)+/<i>/<&[nodetype = sink]> ?y 
+?x (<&[nodetype = sink]>/<a>)*/<e>/(<i>/<&[nodetype = root]>)* ?y 
+?x (<g>/<&[nodetype = core]>)*/<d>/(<&[nodetype = core]>/<h>)* ?y 
+?x ((<&[nodetype = root]>/<a>)|(<&[nodetype = core]>/<b>))/((<f>/<&[nodetype = link]>)|(<g>/<&[nodetype = core]>)) ?y 
+?x ((<&[nodetype = core]>/<c>)|(<d>/<&[nodetype = core]>))/((<&[nodetype = core]>/<h>)|(<i>/<&[nodetype = sink]>)) ?y 
+# ...attributes-wise
+?x <&[nodelabel = A]>/<a[type = ext]>/<&[nodelabel = I]> ?y 
+?x <&[nodetype = core]>/<b>/<&[nodetype = core]> ?y 
+?x <&[nodetype = core][indeg = 7]>/<c> ?y 
+?x <&[nodeindex = 2][nodelabel = B]>/<d>/<&[nodelabel = D][nodeindex = 4]> ?y 
+?x <&[nodeindex <= 5]>/<e>/<&[nodeindex >= 5]> ?y 
+?x <&[nodetype = link]>/<f>/<&[nodetype = link]> ?y 
+?x <&[nodetype = core]>/<g>/<&[nodetype = link]> ?y 
+?x <h>/<&[nodetype ENDS ink]> ?y 
+?x <&[nodelabel > A][nodelabel > A]>/<i[label = i][label = i]> ?y 
+# CONST TO VAR
+<A> <a>/<&[nodelabel = A]>/<a> ?y 
+<A> <a>/<&[nodelabel = D]>/<d> ?y 
+<A> <a>/<&[nodelabel = E]>/<e> ?y 
+<A> <a>/<&[nodelabel = I]>/<i> ?y 
+<B> <b>/<&[nodelabel = B]>/<b> ?y 
+<B> <b>/<&[nodelabel = C]>/<c> ?y 
+<F> <f>/<&[nodelabel = F]>/<f> ?y 
+<F> <f>/<&[nodelabel = G]>/<g> ?y 
+<F> <f>/<&[nodelabel = H]>/<h> ?y 
+# VAR TO CONST
+?x <a>/<&[nodelabel = A]>/<a> <A> 
+?x <a>/<&[nodelabel = A]>/<d> <D> 
+?x <a>/<&[nodelabel = A]>/<e> <E> 
+?x <a>/<&[nodelabel = A]>/<i> <I> 
+?x <b>/<&[nodelabel = B]>/<b> <B> 
+?x <b>/<&[nodelabel = B]>/<c> <C> 
+?x <f>/<&[nodelabel = F]>/<f> <F> 
+?x <f>/<&[nodelabel = F]>/<g> <G> 
+?x <f>/<&[nodelabel = F]>/<h> <H> 
+# CONST TO CONST
+<A> <&[nodelabel = A]>/<a>/<a>/<&[nodelabel = A]> <A> 
+<A> <&[nodelabel = A]>/<a>/<d>/<&[nodelabel = D]> <D> 
+<A> <&[nodelabel = A]>/<a>/<e>/<&[nodelabel = E]> <E> 
+<A> <&[nodelabel = A]>/<a>/<i>/<&[nodelabel = I]> <I> 
+<B> <&[nodelabel = B]>/<b>/<b>/<&[nodelabel = B]> <B> 
+<B> <&[nodelabel = B]>/<b>/<c>/<&[nodelabel = C]> <C> 
+<F> <&[nodelabel = F]>/<f>/<f>/<&[nodelabel = F]> <F> 
+<F> <&[nodelabel = F]>/<f>/<g>/<&[nodelabel = G]> <G> 
+<F> <&[nodelabel = F]>/<f>/<h>/<&[nodelabel = H]> <H> 

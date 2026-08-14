@@ -1,0 +1,38 @@
+# VAR TO VAR
+?x <_> ?y 
+?x <_>/<_> ?y 
+?x <_>/<d>/<_> ?y 
+# attributes
+?x <_[label = h]> ?y 
+?x <_[source = 6]> ?y 
+?x <_[label = h][source = 6]> ?y 
+?x <_[label = h]>|<_[source = 6]> ?y 
+?x <_[label = h]>/<_[source = 6]> ?y 
+# CONST TO VAR 
+# single-edge
+<A> <_> ?y 
+<B> <_> ?y 
+<C> <_> ?y 
+<D> <_> ?y 
+<E> <_> ?y 
+<F> <_> ?y 
+<G> <_> ?y 
+<H> <_> ?y 
+<I> <_> ?y 
+# two-edge
+<A> <_>/<e> ?y 
+<B> <_>/<e> ?y 
+<C> <_>/<e> ?y 
+<D> <_>/<e> ?y 
+<E> <_>/<e> ?y 
+<F> <_>/<e> ?y 
+<G> <_>/<e> ?y 
+<H> <_>/<e> ?y 
+<I> <_>/<e> ?y 
+# CONST TO CONST
+<B> <_> <H> 
+<B> <_>/<_> <H> 
+<B> <_>/<_>/<_> <H> 
+<B> <_[type != ext]> <H> 
+<B> <_[type != ext]>/<_[type != ext]> <H> 
+<B> <_[type != ext]>/<_[type != ext]>/<_[type != ext]> <H> 

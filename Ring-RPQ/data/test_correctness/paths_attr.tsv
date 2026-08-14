@@ -1,0 +1,513 @@
+# VAR TO VAR
+# single-edge...
+# ...trivial label
+?x <a[label = a]> ?y 
+?x <b[label = b]> ?y 
+?x <c[label = c]> ?y 
+?x <d[label = d]> ?y 
+?x <e[label = e]> ?y 
+?x <f[label = f]> ?y 
+?x <g[label = g]> ?y 
+?x <h[label = h]> ?y 
+?x <i[label = i]> ?y 
+# ...nonexistent label
+?x <a[label = error]> ?y 
+?x <b[label = error]> ?y 
+?x <c[label = error]> ?y 
+?x <d[label = error]> ?y 
+?x <e[label = error]> ?y 
+?x <f[label = error]> ?y 
+?x <g[label = error]> ?y 
+?x <h[label = error]> ?y 
+?x <i[label = error]> ?y 
+?x <any[label = error]> ?y 
+# ...type = ext
+?x <a[type = ext]> ?y 
+?x <b[type = ext]> ?y 
+?x <c[type = ext]> ?y 
+?x <d[type = ext]> ?y 
+?x <e[type = ext]> ?y 
+?x <f[type = ext]> ?y 
+?x <g[type = ext]> ?y 
+?x <h[type = ext]> ?y 
+?x <i[type = ext]> ?y 
+?x <any[type = ext]> ?y 
+# ...type = ref
+?x <a[type = ref]> ?y 
+?x <b[type = ref]> ?y 
+?x <c[type = ref]> ?y 
+?x <d[type = ref]> ?y 
+?x <e[type = ref]> ?y 
+?x <f[type = ref]> ?y 
+?x <g[type = ref]> ?y 
+?x <h[type = ref]> ?y 
+?x <i[type = ref]> ?y 
+?x <any[type = ref]> ?y 
+# ...type = cyc
+?x <a[type = cyc]> ?y 
+?x <b[type = cyc]> ?y 
+?x <c[type = cyc]> ?y 
+?x <d[type = cyc]> ?y 
+?x <e[type = cyc]> ?y 
+?x <f[type = cyc]> ?y 
+?x <g[type = cyc]> ?y 
+?x <h[type = cyc]> ?y 
+?x <i[type = cyc]> ?y 
+?x <any[type = cyc]> ?y 
+# ...type = bri
+?x <a[type = bri]> ?y 
+?x <b[type = bri]> ?y 
+?x <c[type = bri]> ?y 
+?x <d[type = bri]> ?y 
+?x <e[type = bri]> ?y 
+?x <f[type = bri]> ?y 
+?x <g[type = bri]> ?y 
+?x <h[type = bri]> ?y 
+?x <i[type = bri]> ?y 
+?x <any[type = bri]> ?y 
+# reversed...
+# ...trivial label
+?x <%a[label = a]> ?y 
+?x <%b[label = b]> ?y 
+?x <%c[label = c]> ?y 
+?x <%d[label = d]> ?y 
+?x <%e[label = e]> ?y 
+?x <%f[label = f]> ?y 
+?x <%g[label = g]> ?y 
+?x <%h[label = h]> ?y 
+?x <%i[label = i]> ?y 
+# ...nonexistent label
+?x <%a[label = error]> ?y 
+?x <%b[label = error]> ?y 
+?x <%c[label = error]> ?y 
+?x <%d[label = error]> ?y 
+?x <%e[label = error]> ?y 
+?x <%f[label = error]> ?y 
+?x <%g[label = error]> ?y 
+?x <%h[label = error]> ?y 
+?x <%i[label = error]> ?y 
+?x <%any[label = error]> ?y 
+# ...type = ext
+?x <%a[type = ext]> ?y 
+?x <%b[type = ext]> ?y 
+?x <%c[type = ext]> ?y 
+?x <%d[type = ext]> ?y 
+?x <%e[type = ext]> ?y 
+?x <%f[type = ext]> ?y 
+?x <%g[type = ext]> ?y 
+?x <%h[type = ext]> ?y 
+?x <%i[type = ext]> ?y 
+?x <%any[type = ext]> ?y 
+# ...type = ref
+?x <%a[type = ref]> ?y 
+?x <%b[type = ref]> ?y 
+?x <%c[type = ref]> ?y 
+?x <%d[type = ref]> ?y 
+?x <%e[type = ref]> ?y 
+?x <%f[type = ref]> ?y 
+?x <%g[type = ref]> ?y 
+?x <%h[type = ref]> ?y 
+?x <%i[type = ref]> ?y 
+?x <%any[type = ref]> ?y 
+# ...type = cyc
+?x <%a[type = cyc]> ?y 
+?x <%b[type = cyc]> ?y 
+?x <%c[type = cyc]> ?y 
+?x <%d[type = cyc]> ?y 
+?x <%e[type = cyc]> ?y 
+?x <%f[type = cyc]> ?y 
+?x <%g[type = cyc]> ?y 
+?x <%h[type = cyc]> ?y 
+?x <%i[type = cyc]> ?y 
+?x <%any[type = cyc]> ?y 
+# ...type = bri
+?x <%a[type = bri]> ?y 
+?x <%b[type = bri]> ?y 
+?x <%c[type = bri]> ?y 
+?x <%d[type = bri]> ?y 
+?x <%e[type = bri]> ?y 
+?x <%f[type = bri]> ?y 
+?x <%g[type = bri]> ?y 
+?x <%h[type = bri]> ?y 
+?x <%i[type = bri]> ?y 
+?x <%any[type = bri]> ?y 
+# two-edge...
+# ...trivial & trivial
+?x <a[label = a]>/<a[label = a]> ?y 
+?x <a[label = a]>/<d[label = d]> ?y 
+?x <a[label = a]>/<e[label = e]> ?y 
+?x <a[label = a]>/<i[label = i]> ?y 
+?x <b[label = b]>/<b[label = b]> ?y 
+?x <b[label = b]>/<c[label = c]> ?y 
+?x <b[label = b]>/<f[label = f]> ?y 
+?x <b[label = b]>/<g[label = g]> ?y 
+?x <b[label = b]>/<h[label = h]> ?y 
+# ...trivial & nonexistent
+?x <a[label = a]>/<a[label = error]> ?y 
+?x <a[label = a]>/<d[label = error]> ?y 
+?x <a[label = a]>/<e[label = error]> ?y 
+?x <a[label = a]>/<i[label = error]> ?y 
+?x <b[label = b]>/<b[label = error]> ?y 
+?x <b[label = b]>/<c[label = error]> ?y 
+?x <b[label = b]>/<f[label = error]> ?y 
+?x <b[label = b]>/<g[label = error]> ?y 
+?x <b[label = b]>/<h[label = error]> ?y 
+# ...nonexistent & trivial
+?x <a[label = error]>/<a[label = a]> ?y 
+?x <a[label = error]>/<d[label = d]> ?y 
+?x <a[label = error]>/<e[label = e]> ?y 
+?x <a[label = error]>/<i[label = i]> ?y 
+?x <b[label = error]>/<b[label = b]> ?y 
+?x <b[label = error]>/<c[label = c]> ?y 
+?x <b[label = error]>/<f[label = f]> ?y 
+?x <b[label = error]>/<g[label = g]> ?y 
+?x <b[label = error]>/<h[label = h]> ?y 
+# ...any & any
+?x <any[type = ext]>/<any[type = ext]> ?y 
+?x <any[type = ext]>/<any[type = ref]> ?y 
+?x <any[type = ext]>/<any[type = cyc]> ?y 
+?x <any[type = ext]>/<any[type = bri]> ?y 
+?x <any[type = ref]>/<any[type = ext]> ?y 
+?x <any[type = ref]>/<any[type = ref]> ?y 
+?x <any[type = ref]>/<any[type = cyc]> ?y 
+?x <any[type = ref]>/<any[type = bri]> ?y 
+?x <any[type = cyc]>/<any[type = ext]> ?y 
+?x <any[type = cyc]>/<any[type = ref]> ?y 
+?x <any[type = cyc]>/<any[type = cyc]> ?y 
+?x <any[type = cyc]>/<any[type = bri]> ?y 
+?x <any[type = bri]>/<any[type = ext]> ?y 
+?x <any[type = bri]>/<any[type = ref]> ?y 
+?x <any[type = bri]>/<any[type = cyc]> ?y 
+?x <any[type = bri]>/<any[type = bri]> ?y 
+# three-edge...
+# ...a/b/c
+?x <a[label = a]>/<b>/<c> ?y 
+?x <a>/<b[label = b]>/<c> ?y 
+?x <a>/<b>/<c[label = c]> ?y 
+?x <a[label = error]>/<b>/<c> ?y 
+?x <a>/<b[label = error]>/<c> ?y 
+?x <a>/<b>/<c[label = error]> ?y 
+# ...any/any/any
+?x <any[type = ext]>/<any>/<any> ?y 
+?x <any>/<any[type = ext]>/<any> ?y 
+?x <any>/<any>/<any[type = ext]> ?y 
+?x <any[type = ref]>/<any>/<any> ?y 
+?x <any>/<any[type = ref]>/<any> ?y 
+?x <any>/<any>/<any[type = ref]> ?y 
+?x <any[type = cyc]>/<any>/<any> ?y 
+?x <any>/<any[type = cyc]>/<any> ?y 
+?x <any>/<any>/<any[type = cyc]> ?y 
+?x <any[type = bri]>/<any>/<any> ?y 
+?x <any>/<any[type = bri]>/<any> ?y 
+?x <any>/<any>/<any[type = bri]> ?y 
+# transitive closure...
+# ...trivial label
+?x (<a[label = a]>)+ ?y 
+?x (<b[label = b]>)+ ?y 
+?x (<c[label = c]>)+ ?y 
+?x (<d[label = d]>)+ ?y 
+?x (<e[label = e]>)+ ?y 
+?x (<f[label = f]>)+ ?y 
+?x (<g[label = g]>)+ ?y 
+?x (<h[label = h]>)+ ?y 
+?x (<i[label = i]>)+ ?y 
+# ...nonexistent label
+?x (<a[label = error]>)+ ?y 
+?x (<b[label = error]>)+ ?y 
+?x (<c[label = error]>)+ ?y 
+?x (<d[label = error]>)+ ?y 
+?x (<e[label = error]>)+ ?y 
+?x (<f[label = error]>)+ ?y 
+?x (<g[label = error]>)+ ?y 
+?x (<h[label = error]>)+ ?y 
+?x (<i[label = error]>)+ ?y 
+?x (<any[label = error]>)+ ?y 
+# ...type = ext
+?x (<a[type = ext]>)+ ?y 
+?x (<b[type = ext]>)+ ?y 
+?x (<c[type = ext]>)+ ?y 
+?x (<d[type = ext]>)+ ?y 
+?x (<e[type = ext]>)+ ?y 
+?x (<f[type = ext]>)+ ?y 
+?x (<g[type = ext]>)+ ?y 
+?x (<h[type = ext]>)+ ?y 
+?x (<i[type = ext]>)+ ?y 
+?x (<any[type = ext]>)+ ?y 
+# ...type = ref
+?x (<a[type = ref]>)+ ?y 
+?x (<b[type = ref]>)+ ?y 
+?x (<c[type = ref]>)+ ?y 
+?x (<d[type = ref]>)+ ?y 
+?x (<e[type = ref]>)+ ?y 
+?x (<f[type = ref]>)+ ?y 
+?x (<g[type = ref]>)+ ?y 
+?x (<h[type = ref]>)+ ?y 
+?x (<i[type = ref]>)+ ?y 
+?x (<any[type = ref]>)+ ?y 
+# ...type = cyc
+?x (<a[type = cyc]>)+ ?y 
+?x (<b[type = cyc]>)+ ?y 
+?x (<c[type = cyc]>)+ ?y 
+?x (<d[type = cyc]>)+ ?y 
+?x (<e[type = cyc]>)+ ?y 
+?x (<f[type = cyc]>)+ ?y 
+?x (<g[type = cyc]>)+ ?y 
+?x (<h[type = cyc]>)+ ?y 
+?x (<i[type = cyc]>)+ ?y 
+?x (<any[type = cyc]>)+ ?y 
+# ...type = bri
+?x (<a[type = bri]>)+ ?y 
+?x (<b[type = bri]>)+ ?y 
+?x (<c[type = bri]>)+ ?y 
+?x (<d[type = bri]>)+ ?y 
+?x (<e[type = bri]>)+ ?y 
+?x (<f[type = bri]>)+ ?y 
+?x (<g[type = bri]>)+ ?y 
+?x (<h[type = bri]>)+ ?y 
+?x (<i[type = bri]>)+ ?y 
+?x (<any[type = bri]>)+ ?y 
+# reflexive-transitive closure...
+# ...trivial label
+?x (<a[label = a]>)* ?y 
+?x (<b[label = b]>)* ?y 
+?x (<c[label = c]>)* ?y 
+?x (<d[label = d]>)* ?y 
+?x (<e[label = e]>)* ?y 
+?x (<f[label = f]>)* ?y 
+?x (<g[label = g]>)* ?y 
+?x (<h[label = h]>)* ?y 
+?x (<i[label = i]>)* ?y 
+# ...nonexistent label
+?x (<a[label = error]>)* ?y 
+?x (<b[label = error]>)* ?y 
+?x (<c[label = error]>)* ?y 
+?x (<d[label = error]>)* ?y 
+?x (<e[label = error]>)* ?y 
+?x (<f[label = error]>)* ?y 
+?x (<g[label = error]>)* ?y 
+?x (<h[label = error]>)* ?y 
+?x (<i[label = error]>)* ?y 
+?x (<any[label = error]>)* ?y 
+# ...type = ext
+?x (<a[type = ext]>)* ?y 
+?x (<b[type = ext]>)* ?y 
+?x (<c[type = ext]>)* ?y 
+?x (<d[type = ext]>)* ?y 
+?x (<e[type = ext]>)* ?y 
+?x (<f[type = ext]>)* ?y 
+?x (<g[type = ext]>)* ?y 
+?x (<h[type = ext]>)* ?y 
+?x (<i[type = ext]>)* ?y 
+?x (<any[type = ext]>)* ?y 
+# ...type = ref
+?x (<a[type = ref]>)* ?y 
+?x (<b[type = ref]>)* ?y 
+?x (<c[type = ref]>)* ?y 
+?x (<d[type = ref]>)* ?y 
+?x (<e[type = ref]>)* ?y 
+?x (<f[type = ref]>)* ?y 
+?x (<g[type = ref]>)* ?y 
+?x (<h[type = ref]>)* ?y 
+?x (<i[type = ref]>)* ?y 
+?x (<any[type = ref]>)* ?y 
+# ...type = cyc
+?x (<a[type = cyc]>)* ?y 
+?x (<b[type = cyc]>)* ?y 
+?x (<c[type = cyc]>)* ?y 
+?x (<d[type = cyc]>)* ?y 
+?x (<e[type = cyc]>)* ?y 
+?x (<f[type = cyc]>)* ?y 
+?x (<g[type = cyc]>)* ?y 
+?x (<h[type = cyc]>)* ?y 
+?x (<i[type = cyc]>)* ?y 
+?x (<any[type = cyc]>)* ?y 
+# ...type = bri
+?x (<a[type = bri]>)* ?y 
+?x (<b[type = bri]>)* ?y 
+?x (<c[type = bri]>)* ?y 
+?x (<d[type = bri]>)* ?y 
+?x (<e[type = bri]>)* ?y 
+?x (<f[type = bri]>)* ?y 
+?x (<g[type = bri]>)* ?y 
+?x (<h[type = bri]>)* ?y 
+?x (<i[type = bri]>)* ?y 
+?x (<any[type = bri]>)* ?y 
+# union...
+# ...trivial & trivial
+?x <a[label = a]>|<a[label = a]> ?y 
+?x <a[label = a]>|<d[label = d]> ?y 
+?x <a[label = a]>|<e[label = e]> ?y 
+?x <a[label = a]>|<i[label = i]> ?y 
+?x <b[label = b]>|<b[label = b]> ?y 
+?x <b[label = b]>|<c[label = c]> ?y 
+?x <b[label = b]>|<f[label = f]> ?y 
+?x <b[label = b]>|<g[label = g]> ?y 
+?x <b[label = b]>|<h[label = h]> ?y 
+# ...trivial & nonexistent
+?x <a[label = a]>|<a[label = error]> ?y 
+?x <a[label = a]>|<d[label = error]> ?y 
+?x <a[label = a]>|<e[label = error]> ?y 
+?x <a[label = a]>|<i[label = error]> ?y 
+?x <b[label = b]>|<b[label = error]> ?y 
+?x <b[label = b]>|<c[label = error]> ?y 
+?x <b[label = b]>|<f[label = error]> ?y 
+?x <b[label = b]>|<g[label = error]> ?y 
+?x <b[label = b]>|<h[label = error]> ?y 
+# ...nonexistent & trivial
+?x <a[label = error]>|<a[label = a]> ?y 
+?x <a[label = error]>|<d[label = d]> ?y 
+?x <a[label = error]>|<e[label = e]> ?y 
+?x <a[label = error]>|<i[label = i]> ?y 
+?x <b[label = error]>|<b[label = b]> ?y 
+?x <b[label = error]>|<c[label = c]> ?y 
+?x <b[label = error]>|<f[label = f]> ?y 
+?x <b[label = error]>|<g[label = g]> ?y 
+?x <b[label = error]>|<h[label = h]> ?y 
+# ...any & any
+?x <any[type = ext]>|<any[type = ext]> ?y 
+?x <any[type = ext]>|<any[type = ref]> ?y 
+?x <any[type = ext]>|<any[type = cyc]> ?y 
+?x <any[type = ext]>|<any[type = bri]> ?y 
+?x <any[type = ref]>|<any[type = ext]> ?y 
+?x <any[type = ref]>|<any[type = ref]> ?y 
+?x <any[type = ref]>|<any[type = cyc]> ?y 
+?x <any[type = ref]>|<any[type = bri]> ?y 
+?x <any[type = cyc]>|<any[type = ext]> ?y 
+?x <any[type = cyc]>|<any[type = ref]> ?y 
+?x <any[type = cyc]>|<any[type = cyc]> ?y 
+?x <any[type = cyc]>|<any[type = bri]> ?y 
+?x <any[type = bri]>|<any[type = ext]> ?y 
+?x <any[type = bri]>|<any[type = ref]> ?y 
+?x <any[type = bri]>|<any[type = cyc]> ?y 
+?x <any[type = bri]>|<any[type = bri]> ?y 
+# complex attributes...
+# ...many
+?x <any[type = ext][label = a]> ?y 
+?x <any[type = ext][label = e]> ?y 
+?x <any[type = ext][label = i]> ?y 
+?x <any[type = ref][label = a]> ?y 
+?x <any[type = ref][label = e]> ?y 
+?x <any[type = ref][label = i]> ?y 
+?x <any[type = cyc][label = b]> ?y 
+?x <any[type = cyc][label = c]> ?y 
+?x <any[type = cyc][label = d]> ?y 
+?x <any[type = bri][label = f]> ?y 
+?x <any[type = bri][label = g]> ?y 
+?x <any[type = bri][label = h]> ?y 
+# ...string and integer
+?x <any[type = ext][count = 1]> ?y 
+?x <any[type = ext][count = 4]> ?y 
+?x <any[type = ext][count = 5]> ?y 
+?x <any[type = ext][count = 9]> ?y 
+?x <any[type = ref][count = 1]> ?y 
+?x <any[type = ref][count = 4]> ?y 
+?x <any[type = ref][count = 5]> ?y 
+?x <any[type = ref][count = 9]> ?y 
+?x <any[type = cyc][count = 1]> ?y 
+?x <any[type = cyc][count = 4]> ?y 
+?x <any[type = cyc][count = 5]> ?y 
+?x <any[type = cyc][count = 9]> ?y 
+?x <any[type = bri][count = 1]> ?y 
+?x <any[type = bri][count = 4]> ?y 
+?x <any[type = bri][count = 5]> ?y 
+?x <any[type = bri][count = 9]> ?y 
+# ...comparison operators
+?x <any[abc < a]> ?y 
+?x <any[abc >= a]> ?y 
+?x <any[abc < n]> ?y 
+?x <any[abc <= n][abc => n]> ?y 
+?x <any[abc > n]> ?y 
+?x <any[abc <= z]> ?y 
+?x <any[abc > z]> ?y 
+?x <any[index < 0]> ?y 
+?x <any[index >= 0][index < 10]> ?y 
+?x <any[index >= 10][index < 20]> ?y 
+?x <any[index >= 20][index < 30]> ?y 
+?x <any[index >= 30][index < 40]> ?y 
+?x <any[index >= 40][index < 50]> ?y 
+?x <any[index >= 50]> ?y 
+# ...word operators
+?x <any[abc BEGINS a]> ?y 
+?x <any[abc BEGINS aa]> ?y 
+?x <any[abc BEGINS aaa]> ?y 
+?x <any[abc ENDS x]> ?y 
+?x <any[abc ENDS xx]> ?y 
+?x <any[abc ENDS xxx]> ?y 
+?x <any[abc PREFIX gg]> ?y 
+?x <any[abc PREFIX eel]> ?y 
+?x <any[abc PREFIX ooze]> ?y 
+?x <any[abc POSTFIX troll]> ?y 
+?x <any[abc POSTFIX referee]> ?y 
+?x <any[abc POSTFIX kangaroo]> ?y 
+# ...float approximation
+?x <any[triple ROUND 0.0]> ?y 
+?x <any[triple ROUND 1.0]> ?y 
+?x <any[triple APPROX1 0.1]> ?y 
+?x <any[triple APPROX1 0.2]> ?y 
+?x <any[triple APPROX1 0.3]> ?y 
+?x <any[triple APPROX1 0.4]> ?y 
+?x <any[triple APPROX1 0.5]> ?y 
+?x <any[triple APPROX1 0.6]> ?y 
+?x <any[triple APPROX1 0.7]> ?y 
+?x <any[triple APPROX1 0.8]> ?y 
+?x <any[triple APPROX1 0.9]> ?y 
+?x <any[triple ROUND1 0.444]> ?y 
+?x <any[triple ROUND2 0.444]> ?y 
+# ...null values
+?x <any[detour = _]> ?y 
+?x <any[detour != _]> ?y 
+?x <any[detour < 2]> ?y 
+?x <any[detour = 2]> ?y 
+?x <any[detour > 2]> ?y 
+?x <any[detour != 2]> ?y 
+# ...in union
+?x <any[type = ext][label = a]>|<any[type = cyc][label = b]> ?y 
+?x <any[type = ext][count = 1]>|<any[type = cyc][count = 1]> ?y 
+?x <any[abc <= u][abc => n]>|<any[index >= 10][index < 20]> ?y 
+?x <any[abc BEGINS a][abc ENDS a]>|<any[abc PREFIX x][abc POSTFIX x]> ?y 
+?x <any[triple ROUND 1.0][triple ROUND1 0.5]>|<any[detour = _][detour > -100]> ?y 
+# ...in path
+?x <any[type = ext][label = a]>/<any>/<any[type = cyc][label = b]> ?y 
+?x (<any[type = ext][count = 1]>)?/<any[type = cyc][count = 1]> ?y 
+?x <any[abc <= u][abc => n]>/<any[index >= 10][index < 20]> ?y 
+?x <any[abc BEGINS a][abc ENDS a]>/<any>/<any[abc PREFIX x][abc POSTFIX x]> ?y 
+?x (<any[triple ROUND 1.0][triple ROUND1 0.5]>)*/(<any[detour = _][detour > -100]>)* ?y 
+# CONST TO VAR
+<A> <any[type = ext]> ?y 
+<A> <any[type = ref]> ?y 
+<A> <any[type = cyc]> ?y 
+<A> <any[type = bri]> ?y 
+<B> <any[type = ext]> ?y 
+<B> <any[type = ref]> ?y 
+<B> <any[type = cyc]> ?y 
+<B> <any[type = bri]> ?y 
+<C> <any[type = ext]> ?y 
+<C> <any[type = ref]> ?y 
+<C> <any[type = cyc]> ?y 
+<C> <any[type = bri]> ?y 
+<D> <any[type = ext]> ?y 
+<D> <any[type = ref]> ?y 
+<D> <any[type = cyc]> ?y 
+<D> <any[type = bri]> ?y 
+<E> <any[type = ext]> ?y 
+<E> <any[type = ref]> ?y 
+<E> <any[type = cyc]> ?y 
+<E> <any[type = bri]> ?y 
+<F> <any[type = ext]> ?y 
+<F> <any[type = ref]> ?y 
+<F> <any[type = cyc]> ?y 
+<F> <any[type = bri]> ?y 
+<G> <any[type = ext]> ?y 
+<G> <any[type = ref]> ?y 
+<G> <any[type = cyc]> ?y 
+<G> <any[type = bri]> ?y 
+<H> <any[type = ext]> ?y 
+<H> <any[type = ref]> ?y 
+<H> <any[type = cyc]> ?y 
+<H> <any[type = bri]> ?y 
+<I> <any[type = ext]> ?y 
+<I> <any[type = ref]> ?y 
+<I> <any[type = cyc]> ?y 
+<I> <any[type = bri]> ?y 
+# VAR TO CONST
+# CONST TO CONST

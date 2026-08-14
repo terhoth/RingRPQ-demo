@@ -1,0 +1,9 @@
+1 <A> A root 1 2 10
+2 <B> B core 2 5 6
+3 <C> C core 3 6 6
+4 <D> D core 4 7 6
+5 <E> E link 5 7 7
+6 <F> F link 6 6 4
+7 <G> G root 7 2 4
+8 <H> H sink 8 4 2
+9 <I> I sink 9 10 2
