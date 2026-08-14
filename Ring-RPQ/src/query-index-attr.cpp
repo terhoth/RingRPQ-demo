@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 	     << load_time << " ms" << endl;
 
 	// Initialize query variables
-	vector<pair<uint64_t, uint64_t>> query_output;
+	vector<pair<std::string, std::string>> query_output;
 	string line;
 	high_resolution_clock::time_point start, stop;
 	duration<double> time_span;

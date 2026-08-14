@@ -19,7 +19,8 @@
 #include <iostream>
 #include <fstream>
 #include <sdsl/construct.hpp>
-#include <regex>
+#include <set>
+#include <utility>
 #include "ring_rpq_attr.hpp"
 #include "parse_query_attr.cpp"
 #include "load_index_util.cpp"
@@ -71,20 +72,32 @@ int main(int argc, char **argv)
 	ring_rpq_attr_bfs graph;
 	graph.load(index_file);
 	auto load_end = timer::now();
+	unordered_map<uint64_t, string> SO_id_to_name;
+	ifstream ifs_SO(index_file + ".SO");
+	uint64_t id;
+	string name;
+	while (ifs_SO >> id >> name)
+	{
+		SO_id_to_name[id] = name;
+		ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
+	}
 	int load_time = duration_cast<milliseconds>(load_end - load_start).count();
 	cout << "  Index loaded " 
 	     << (float) graph.size() / (graph.n_triples() / 2) << " bytes per triple " 
 	     << load_time << " ms" << endl;
 
-	// initialize query variables
-	vector<pair<uint64_t, uint64_t>> query_output;
-	string line;
+	// (lambda to make printing results easier)
+	auto print_pair = [](pair<string, string> str_pair) 
+	                { cout << str_pair.first.substr(1, str_pair.first.length()-2) 
+	              << "-->" << str_pair.second.substr(1, str_pair.second.length()-2) << " "; };
 
 	// Parse and run the queries
 	cout << "Starting tests" << endl;
+	vector<pair<string, string>> query_output;
 	int queries_passed = 0;
 	int queries_failed = 0;
 	unsigned int q = 0;
+	string line;
 	while (getline(ifs_q, line))
 	{
 		if (line.length() == 0 or line.at(0) == '#') continue;
@@ -108,21 +121,21 @@ int main(int argc, char **argv)
 		}
 
 		// convert output to set
-		unordered_set<pair<uint64_t, uint64_t>> output_set;
-		for (auto pair : query_output)
+		set<pair<string, string>> output_set;
+		for (const pair<string, string>& output_pair : query_output)
 		{
-			output_set.insert(pair);
+			output_set.insert(output_pair);
 		}
 
 		// convert answers to set
-		unordered_set<pair<uint64_t, uint64_t>> answer_set;
+		set<pair<string, string>> answer_set;
 		int expected_n_of_results;
 		uint64_t s, o;
 		ifs_ans >> expected_n_of_results;
 		for (int i = 0; i < expected_n_of_results; i++)
 		{
 			ifs_ans >> s >> o;
-			answer_set.emplace(s, o);
+			answer_set.insert(pair<string, string>(SO_id_to_name.at(s), SO_id_to_name.at(o)));
 		}
 
 		// check that the line ends where it should
@@ -157,7 +170,7 @@ int main(int argc, char **argv)
 			{
 				if (output_set.find(answer_pair) == output_set.end())
 				{
-					cout << answer_pair.first << "-->" << answer_pair.second << " ";
+					print_pair(answer_pair);
 				}
 			}
 			cout << endl;
@@ -167,7 +180,7 @@ int main(int argc, char **argv)
 			{
 				if (answer_set.find(output_pair) == answer_set.end())
 				{
-					cout << output_pair.first << "-->" << output_pair.second << " ";
+					print_pair(output_pair);	
 				}
 			}
 			cout << endl << endl;

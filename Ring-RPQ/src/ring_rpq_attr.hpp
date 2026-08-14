@@ -590,9 +590,15 @@ public:
 	}
 
 
-
-	ParseError evaluate(std::string line, 
-	                    std::vector<std::pair<uint64_t, uint64_t>>& output,
+	// Evaluates a query, collecting in output the pairs of names of nodes
+	// that are connected by a path that matches the query.
+	// The query should consist of subject name, rpq expression, and object name,
+	// where the subject/object can be replaced with a question mark.
+	// (More detailed syntax information is in this repository's README file.)
+	// If bound is given, searches and returns only up to that many results.
+	// Quits early if the given timeout is exceeded.
+	ParseError evaluate(std::string query_line, 
+	                    std::vector<std::pair<std::string, std::string>>& output,
 	                    uint64_t bound = std::numeric_limits<uint64_t>::max(),
 	                    unsigned int timeout = TIME_OUT)
 	{
@@ -607,7 +613,7 @@ public:
 		vector<string> subqueries;
 
 		// separate subject, rpq and object from the query line
-		tie(s_id, rpq, o_id) = parse_subject_and_object(line, SO_name_to_id);
+		tie(s_id, rpq, o_id) = parse_subject_and_object(query_line, SO_name_to_id);
 		if (rpq == "")
 		{
 			return ParseError::MissingEndpoint;
@@ -1001,7 +1007,7 @@ private:
 	// Returns true iff a timeout occurs.
 	bool _rpq_const_s_to_var_o(RpqAutomataAttr &A,
 	                           uint64_t initial_object,
-	                           std::vector<std::pair<uint64_t, uint64_t>> &solutions,
+	                           std::vector<std::pair<std::string, std::string>> &solutions,
 	                           bool const_to_var,
 	                           timer::time_point start,
 	                           uint64_t bound = std::numeric_limits<uint64_t>::max())
@@ -1021,7 +1027,8 @@ private:
 		if (A.atFinal(current_D, BWD)) // are empty paths accepted?
 		{
 			// add solution
-			solutions.emplace_back(initial_object, initial_object);
+			std::string name = SO_id_to_name.at(initial_object);
+			solutions.emplace_back(name, name);
 			// mark initial states as visited
 			D_array[initial_object] = D_array.atPos(initial_object) | current_D;
 		}
@@ -1030,8 +1037,10 @@ private:
 		std::function<bool(uint64_t)> outputter = [this, &solutions, const_to_var, 
 		                                           initial_object, bound](uint64_t i)
 		{
-			if (const_to_var) solutions.emplace_back(initial_object, L_S[i]);
-			else              solutions.emplace_back(L_S[i], initial_object);
+			std::string name1 = SO_id_to_name.at(initial_object);
+			std::string name2 = SO_id_to_name.at(L_S[i]);
+			if (const_to_var) solutions.emplace_back(name1, name2);
+			else              solutions.emplace_back(name2, name1);
 			return (solutions.size() >= bound);
 		};
 
@@ -1110,7 +1119,7 @@ private:
 	void or_query_var_to_var(const std::string &input_rpq, uint64_t n_or,
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// remove attribute constraints and create acceptors from them
@@ -1194,7 +1203,10 @@ private:
 					if (insert_info.second)
 					{
 						// wasn't yet in result_set, no risk of duplicate result
-						output.push_back(*insert_info.first);
+						const auto& id_pair = *insert_info.first;
+						std::string name1 = SO_id_to_name.at(id_pair.first);
+						std::string name2 = SO_id_to_name.at(id_pair.second);
+						output.emplace_back(name1, name2);
 						if (output.size() >= bound) return;
 					}
 					stop = timer::now();
@@ -1210,7 +1222,7 @@ private:
 	void single_predicate_query(uint64_t p, bool is_reversed, uint64_t s, uint64_t o, 
 	                            unordered_map<std::string, AttrInfo>& attributes_map,
 	                            vector<vector<pair<AttrInfo, Acceptor>>>& attr_acceptors,
-	                            std::vector<std::pair<uint64_t, uint64_t>>& output,
+	                            std::vector<std::pair<std::string, std::string>>& output,
 	                            uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// initialize clock, to check for timeout
@@ -1259,7 +1271,9 @@ private:
 				auto iter = result_set.find(subj);
 				if (iter == result_set.end())
 				{
-					output.emplace_back(subj, o);
+					std::string name1 = SO_id_to_name.at(subj);
+					std::string name2 = SO_id_to_name.at(o);
+					output.emplace_back(name1, name2);
 					result_set.insert(subj);
 					if (output.size() >= bound) return;
 				}
@@ -1287,7 +1301,9 @@ private:
 				auto iter = result_set.find(obj);
 				if (iter == result_set.end()) 
 				{
-					output.emplace_back(s, obj);
+					std::string name1 = SO_id_to_name.at(s);
+					std::string name2 = SO_id_to_name.at(obj);
+					output.emplace_back(name1, name2);
 					result_set.insert(obj);
 					if (output.size() >= bound) return;
 				}
@@ -1332,7 +1348,9 @@ private:
 
 				if (L_S[i] == s)
 				{
-					output.emplace_back(s, o);
+					std::string name1 = SO_id_to_name.at(s);
+					std::string name2 = SO_id_to_name.at(o);
+					output.emplace_back(name1, name2);
 					return;
 				}
 
@@ -1353,7 +1371,7 @@ private:
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
 	                          uint64_t initial_object,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 
@@ -1380,7 +1398,7 @@ private:
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
 	                          uint64_t initial_object,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1402,7 +1420,7 @@ private:
 	void rpq_const_to_const(const std::string &rpq, uint64_t s, uint64_t o,
 	                        unordered_map<std::string, uint64_t> &predicates_map,
 	                        unordered_map<std::string, AttrInfo> &attributes_map,
-	                        std::vector<std::pair<uint64_t, uint64_t>> &output)
+	                        std::vector<std::pair<std::string, std::string>> &output)
 	{
 
 		// create an automaton from the query
@@ -1417,7 +1435,9 @@ private:
 		high_resolution_clock::time_point start = high_resolution_clock::now();
 		if (_rpq_const_to_const(A, s, o, start))
 		{
-			output.emplace_back(s, o);
+			std::string name1 = SO_id_to_name.at(s);
+			std::string name2 = SO_id_to_name.at(o);
+			output.emplace_back(name1, name2);
 		}
 
 		// clean markings
@@ -1433,7 +1453,7 @@ private:
 	void rpq_var_to_var_os(const std::string &rpq,
 	                       unordered_map<std::string, uint64_t> &predicates_map,
 	                       unordered_map<std::string, AttrInfo> &attributes_map,
-	                       std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                       std::vector<std::pair<std::string, std::string>> &output,
 	                       uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1476,7 +1496,7 @@ private:
 	void rpq_var_to_var_so(const std::string &rpq,
 	                       unordered_map<std::string, uint64_t> &predicates_map,
 	                       unordered_map<std::string, AttrInfo> &attributes_map,
-	                       std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                       std::vector<std::pair<std::string, std::string>> &output,
 	                       uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1522,7 +1542,7 @@ private:
 public:
 
 	// Evaluates the given regular path query.
-	// Collects results in query_output as pairs of path endpoints.
+	// Collects results in output as pairs of path endpoint names.
 	// Parameters:
 	//   query_type: the sequence of operators in the query
 	//   pred_vec: the sequence of predicates in the query
@@ -1530,14 +1550,14 @@ public:
 	//   o_id: the ending node's identigier, or 0 if none
 	//   pred_map: mapping from predicate names to ids
 	//   attr_map: mapping from attribute names to type information structs
-	//   query_output: vector for the returned results
+	//   output: vector for the returned results
 	// (Copied with small modifications from query-index-basic.cpp)
 	void run_query(std::string query, std::string query_type, 
 	               std::vector<uint64_t>& pred_vec, 
 	               uint64_t s_id, uint64_t o_id,
 	               std::unordered_map<std::string, uint64_t>& pred_map,
 	               std::unordered_map<std::string, AttrInfo>& attr_map,
-	               std::vector<std::pair<uint64_t, uint64_t>>& query_output,
+	               std::vector<std::pair<std::string, std::string>>& output,
 	               uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// Choose correct method to use for evaluation:
@@ -1553,35 +1573,35 @@ public:
 				if (query.at(i) == '%') { is_reversed_pred = true; break; }
 			
 			single_predicate_query(pred_vec.back(), is_reversed_pred, s_id, o_id, 
-			                       attr_map, attr_acceptors, query_output, bound);
+			                       attr_map, attr_acceptors, output, bound);
 		}
 		else if (s_id == 0 and o_id == 0) // both endpoints are variable
 		{
 			// determine the direction to search (subjects first or objects first)
 			if (query_type == "") // single wildcard predicate
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound); 
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound); 
 			else if (query_type == "+" or query_type == "*")
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type[query_type.size() - 1] == '*' and query_type[0] != '*')
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type[0] == '*' or query_type[0] == '+')
-				rpq_var_to_var_os(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_os(query, pred_map, attr_map, output, bound);
 			else if (std::all_of(query_type.begin(), query_type.end(), [](char c){return c == '|';})
 				 and std::all_of(pred_vec.begin(), pred_vec.end(), [](uint64_t id){return id != 0;}))
-				or_query_var_to_var(query, pred_vec.size(), pred_map, attr_map, query_output, bound);
+				or_query_var_to_var(query, pred_vec.size(), pred_map, attr_map, output, bound);
 			else if (pred_selectivity(pred_vec.front()) <= pred_selectivity(pred_vec.back()))
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else
-				rpq_var_to_var_os(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_os(query, pred_map, attr_map, output, bound);
 		} 
 		else // at least one endpoint is fixed
 		{
 			if (s_id != 0 and o_id == 0)
-				rpq_const_s_to_var_o(query, pred_map, attr_map, s_id, query_output, bound);
+				rpq_const_s_to_var_o(query, pred_map, attr_map, s_id, output, bound);
 			else if (s_id == 0 and o_id != 0)
-				rpq_var_s_to_const_o(query, pred_map, attr_map, o_id, query_output, bound);
+				rpq_var_s_to_const_o(query, pred_map, attr_map, o_id, output, bound);
 			else
-				rpq_const_to_const(query, s_id, o_id, pred_map, attr_map, query_output);
+				rpq_const_to_const(query, s_id, o_id, pred_map, attr_map, output);
 		}
 	}
 
@@ -1645,16 +1665,22 @@ public:
 
 	// Implemented by Terho Thorel.
 	// Collects all paths whose length is the given depth,
-	// starting from the node with the given id.
-	// Each returned path contains the sequence of predicate id's
-	// with the endpoint node id appended to its end.
+	// starting from the node with the given name.
+	// Each returned path contains the sequence of predicate names
+	// with the endpoint node name appended to its end.
 	// Edges are followed either forwards, backwards, or both,
 	// depending on the boolean arguments.
-	void find_paths(uint64_t start_id, unsigned int depth, 
-	                std::vector<std::vector<uint64_t>>& paths,
+	void find_paths(std::string start_node, unsigned int depth, 
+	                std::vector<std::vector<std::string>>& paths,
 	                bool forward = true, bool backward = false, 
 	                timer::time_point start_time = timer::now())
 	{
+		if (SO_name_to_id.find(start_node) == SO_name_to_id.end())
+		{
+			throw std::invalid_argument("Unknown node: " + start_node);
+		}
+		uint64_t start_id = SO_name_to_id.at(start_node);
+
 		// recursive depth-first-search algorithm
 		// (paths.back() is the current path)
 
@@ -1682,8 +1708,9 @@ public:
 					for (uint64_t i = I_s.first; i <= I_s.second; i++)
 					{
 						// advance recursively
-						paths.back().push_back(p % real_max_P);
-						find_paths(L_S[i], depth, paths, forward, backward, start_time);
+						paths.back().push_back(P_id_to_name.at(p % real_max_P));
+						std::string next_node = SO_id_to_name.at(L_S[i]);
+						find_paths(next_node, depth, paths, forward, backward, start_time);
 					}
 				}
 
@@ -1694,9 +1721,9 @@ public:
 		}
 		else
 		{
-			// save the resulting path with the endpoint node id
-			paths.back().push_back(start_id);
-			// continue with the same path (without node id)
+			// save the resulting path with the endpoint node name
+			paths.back().push_back(SO_id_to_name.at(start_id));
+			// continue with the same path (without end node)
 			paths.emplace_back(paths.back());
 			paths.back().pop_back();
 		}
