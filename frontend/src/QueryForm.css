@@ -1,0 +1,104 @@
+.queryForm {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formRow {
+  display: flex;
+  gap: 16px;
+}
+
+.formRow .formField {
+  flex: 1;
+  min-width: 0;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formField label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.queryForm select,
+.queryForm input[type='number'],
+.queryForm input[type='text'] {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  box-sizing: border-box;
+}
+
+.queryForm select:focus-visible,
+.queryForm input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent-border);
+}
+
+.queryForm select:disabled,
+.queryForm input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submitButton {
+  align-self: flex-start;
+  font-size: 16px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.submitButton:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.errorMessage {
+  margin: 0;
+  font-size: 14px;
+  color: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorMessage {
+    color: #ff6b6b;
+  }
+}
+
+@media (max-width: 1024px) {
+  .queryForm {
+    padding: 24px 20px;
+  }
+
+  .formRow {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
