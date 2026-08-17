@@ -6,6 +6,7 @@ import { submitQuery } from './services/query'
 
 const QueryForm = () => {
   const [databaseList, setDatabaseList] = useState([])
+  const [isLoadingDatabases, setIsLoadingDatabases] = useState(true)
   const [databaseName, setDatabaseName] = useState('')
   const [timeoutSeconds, setTimeoutSeconds] = useState('')
   const [maxResults, setMaxResults] = useState('')
@@ -15,21 +16,35 @@ const QueryForm = () => {
 
   useEffect(() => {
     const fetchDatabases = async () => {
+      setIsLoadingDatabases(true)
       try {
         const databases = await getDatabaseList()
         setDatabaseList(databases)
       } catch (err) {
         console.error('Error fetching database list:', err)
         setError('Could not load the list of databases.')
+      } finally {
+        setIsLoadingDatabases(false)
       }
     }
 
     fetchDatabases()
   }, [])
 
+  let databasePlaceholder = 'Select a database…'
+  if (isLoadingDatabases) {
+    databasePlaceholder = 'Loading databases…'
+  } else if (databaseList.length === 0) {
+    databasePlaceholder = 'No databases available'
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
 
+    if (isLoadingDatabases) {
+      setError('Still loading the list of databases — please wait.')
+      return
+    }
     if (!databaseName) {
       setError('Please select a database.')
       return
@@ -65,9 +80,9 @@ const QueryForm = () => {
           id="databaseName"
           value={databaseName}
           onChange={(e) => setDatabaseName(e.target.value)}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isLoadingDatabases || databaseList.length === 0}
         >
-          <option value="">Select a database…</option>
+          <option value="">{databasePlaceholder}</option>
           {databaseList.map((name) => (
             <option key={name} value={name}>
               {name}

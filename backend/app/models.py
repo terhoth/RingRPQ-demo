@@ -11,14 +11,13 @@ class QueryCache(Base):
     """One row per query submission (not deduplicated — the same translated_query
     can appear on multiple rows, submitted at different times). Doubles as the
     result cache: ix_query_cache_lookup lets a lookup by (translated_query_hash,
-    service, database_name) find the most recent completed result for a translated
-    query in a single index scan.
+    database_name) find the most recent completed result for a translated query in
+    a single index scan.
     """
 
     __tablename__ = "query_cache"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    service = Column(Text, nullable=False)
     user_query = Column(Text, nullable=False)
     database_name = Column(Text, nullable=False)
     max_number_of_results = Column(Integer, nullable=False)
@@ -34,12 +33,10 @@ class QueryCache(Base):
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("service IN ('ring-rpq', 'xpathringrpq')", name="query_cache_service_check"),
-        CheckConstraint("status IN ('pending', 'completed', 'failed')", name="query_cache_status_check"),
+        CheckConstraint("status IN ('pending', 'running', 'completed', 'failed')", name="query_cache_status_check"),
         Index(
             "ix_query_cache_lookup",
             "translated_query_hash",
-            "service",
             "database_name",
             text("submitted_at DESC"),
             postgresql_where=text("status = 'completed'"),
