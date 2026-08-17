@@ -69,8 +69,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	}
 
 	@Override
-	public void exitOrExpr(xpathRpqParser.OrExprContext ctx) {
-		this.warnIf(ctx.getChildCount() > 1, "Logical OR has not been implemented");
+	public void enterAndExpr(xpathRpqParser.AndExprContext ctx) {
+		this.warnIf(ctx.parent.getChildCount() > 1, "Logical OR has not been implemented");
 	}
 
 	@Override 
@@ -79,6 +79,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			// separate and-combined expressions into different brackets
 			// e.g. [@attr1 = 1 and @attr2 = 2] --> [@attr1 = 1][@attr2 = 2]
 			if (this.verbose) System.out.println("enterEqualityExpr");
+			this.warnIf(!this.insideAttributeTest, "Logical AND is not allowed outside attribute test");
 			this.queryStack.peek().append("][");
 			this.insideAttributeTest = false;
 			if (this.verbose) System.out.println(this.queryStack.peek());
@@ -89,12 +90,23 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitEqualityExpr(xpathRpqParser.EqualityExprContext ctx) {
 		if (ctx.getChildCount() > 1) {
 			if (this.verbose) System.out.println("exitEqualityExpr");
-			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
-			this.queryStack.peek().append(this.attributeValue.toString());
-			if (this.verbose) System.out.println(this.queryStack.peek());
 			this.warnIf(!this.insideAttributeTest, "Equality expressions may only be used to test attributes");
+			this.warnIf(this.attributeValue == null,
+			            "Equality expressions must consist of attribute name, operand and value");
+			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
+			if (this.attributeValue != null) {
+				this.queryStack.peek().append(this.attributeValue.toString());
+			}
+			if (this.verbose) System.out.println(this.queryStack.peek());
 		}
-		this.warnIf(ctx.getChildCount() > 3, "Too many operands in equality expression");
+	}
+
+	@Override
+	public void enterRelationalExpr(xpathRpqParser.RelationalExprContext ctx) {
+		this.warnIf(this.insideAttributeTest && ctx.parent.getChildCount() > 3, 
+		            "Too many operands in equality expression");
+		this.warnIf(!this.insideAttributeTest && ctx.parent.getChildCount() > 1, 
+		            "Equality operators are not allowed outside attribute tests");
 	}
 
 	@Override 
@@ -107,7 +119,14 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			this.warnIf(!this.insideAttributeTest, 
 			            "Relational expressions should begin with an @-prefixed attribute name");
 		}
-		this.warnIf(ctx.getChildCount() > 3, "Too many operands in relational expression");
+	}
+
+	@Override
+	public void enterAdditiveExpr(xpathRpqParser.AdditiveExprContext ctx) {
+		this.warnIf(this.insideAttributeTest && ctx.parent.getChildCount() > 3, 
+		            "Too many operands in relational expression");
+		this.warnIf(!this.insideAttributeTest && ctx.parent.getChildCount() > 1, 
+		            "Comparison operators are not allowed outside attribute tests");
 	}
 
 	@Override
@@ -120,9 +139,13 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		this.warnIf(ctx.getChildCount() > 1, "Multiplication has not been implemented");
 	}
 
+	//@Override
+	//public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
+	//	this.warnIf(ctx.getChildCount() > 1, "Union has not been implemented");
+	//}
 	@Override
-	public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
-		this.warnIf(ctx.getChildCount() > 1, "Union has not been implemented");
+	public void enterPathExprNoRoot(xpathRpqParser.PathExprNoRootContext ctx) {
+		this.warnIf(ctx.parent.parent.getChildCount() > 1, "Union has not been implemented");
 	}
 
 	@Override
@@ -322,6 +345,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("exitPredicate");
 		StringBuilder predicate = this.queryStack.pop();
+		this.warnIf(this.queryStack.isEmpty(), "The entire query seems to be inside a predicate??");
 		if (this.insideAttributeTest) {
 			this.insideAttributeTest = false;
 			this.queryStack.peek().append("[");
