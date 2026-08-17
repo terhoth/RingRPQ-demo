@@ -68,17 +68,31 @@ public class HelloController {
 
             // create a parser that feeds off the tokens buffer
             xpathRpqParser parser = new xpathRpqParser(tokens);
+			parser.removeErrorListeners();
+			XPathErrorListener errorlistener = new XPathErrorListener();
+			parser.addErrorListener(errorlistener);
 
-			StringBuilder sb = new StringBuilder();
-
+			// parse
 			XPathRpqListener mylistener = new XPathRpqListener();
 			parser.addParseListener(mylistener);
             ParseTree tree = parser.main();    // begin parsing at rule main
+
+			// print error messages
+			final ArrayList<String> errors = errorlistener.getErrorMessages();
+			for (String msg : errors) {
+				System.out.println(msg);
+			}
             
-            final String cypQuery = sb.append(mylistener.getQuery()).toString();
+			// get translated query
+			StringBuilder sb = new StringBuilder();
+            final String rpq = sb.append(mylistener.getQuery()).toString();
+
+			// create json
 			JSONObject mainObject = new JSONObject();
-			mainObject.put("query", cypQuery);
-			System.out.println(cypQuery);
+			mainObject.put("query", rpq);			
+			mainObject.put("errors", errors);
+
+			System.out.println("");
 			return mainObject;
             
     	} catch (Exception e) {
