@@ -9,7 +9,7 @@ import org.antlr.v4.runtime.BaseErrorListener;
 
 public class XPathErrorListener extends BaseErrorListener {
 
-	ArrayList<String> errors = new ArrayList<String>();
+	private ArrayList<String> errors = new ArrayList<String>();
 
 	
 	public ArrayList<String> getErrorMessages() {
@@ -17,17 +17,9 @@ public class XPathErrorListener extends BaseErrorListener {
 	}
 
 	@Override
-	public void syntaxError(Recognizer<?, ?> recognizer,
- 	                        Object offendingSymbol,
+	public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
  	                        int line, int charPositionInLine,
- 	                        String msg,
- 	                        RecognitionException e) {
- 		//List<String> stack = ((Parser)recognizer).getRuleInvocationStack();
- 		//Collections.reverse(stack);
- 		//System.err.println("rule stack: " + stack);
-		//System.err.println("line " + line + ":" + charPositionInLine + " at " +
-		//                   offendingSymbol + ": " + msg);
-		System.err.println("AAARGHH!");
+ 	                        String msg, RecognitionException e) {
 		String message = "Syntax error: " + msg + " (" + charPositionInLine + ")";
 		this.errors.add(message);
     }

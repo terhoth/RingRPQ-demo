@@ -73,19 +73,27 @@ public class HelloController {
 			parser.addErrorListener(errorlistener);
 
 			// parse
-			XPathRpqListener mylistener = new XPathRpqListener();
-			parser.addParseListener(mylistener);
+			XPathRpqListener listener = new XPathRpqListener();
+			parser.addParseListener(listener);
             ParseTree tree = parser.main();    // begin parsing at rule main
 
 			// print error messages
-			final ArrayList<String> errors = errorlistener.getErrorMessages();
-			for (String msg : errors) {
+			ArrayList<String> errors = new ArrayList<String>();
+			final ArrayList<String> errors1 = errorlistener.getErrorMessages();
+			for (String msg : errors1) {
 				System.out.println(msg);
 			}
+			errors.addAll(errors1);
+			final ArrayList<String> errors2 = listener.getErrorMessages();
+			for (String msg : errors2) {
+				System.out.println(msg);
+			}
+			errors.addAll(errors2);
+			
             
 			// get translated query
 			StringBuilder sb = new StringBuilder();
-            final String rpq = sb.append(mylistener.getQuery()).toString();
+            final String rpq = sb.append(listener.getQuery()).toString();
 
 			// create json
 			JSONObject mainObject = new JSONObject();
