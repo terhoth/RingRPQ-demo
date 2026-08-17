@@ -57,7 +57,6 @@ def submit_query(request: QueryRequest, db: Annotated[Session, Depends(get_db)])
 
     if translated_query:
         entry = QueryCache(
-            service="ring-rpq",
             user_query=request.query,
             database_name=request.database_name,
             max_number_of_results=request.max_number_of_results,

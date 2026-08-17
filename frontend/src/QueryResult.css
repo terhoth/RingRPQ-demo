@@ -1,0 +1,118 @@
+.queryResult {
+  width: 100%;
+  max-width: 640px;
+  margin: 24px auto 0;
+  padding: 24px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.queryResultHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.statusBadge-completed {
+  background: rgba(46, 204, 113, 0.15);
+  color: #1e8449;
+}
+
+.statusBadge-failed,
+.statusBadge-translation_failed {
+  background: rgba(231, 76, 60, 0.12);
+  color: #c0392b;
+}
+
+.elapsedTime {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.queryResultHint {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.queryResultError {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #c0392b;
+}
+
+.queryResultCount {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.queryResultTableWrapper {
+  overflow-x: auto;
+}
+
+table.queryResultTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+table.queryResultTable th,
+table.queryResultTable td {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+table.queryResultTable th {
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+.queryResultRaw {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+  .statusBadge-completed {
+    background: rgba(46, 204, 113, 0.2);
+    color: #4ade80;
+  }
+
+  .statusBadge-failed,
+  .statusBadge-translation_failed {
+    background: rgba(231, 76, 60, 0.2);
+    color: #ff6b6b;
+  }
+
+  .queryResultError {
+    color: #ff6b6b;
+  }
+}
