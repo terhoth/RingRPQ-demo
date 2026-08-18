@@ -41,7 +41,7 @@ using std::string;
 using std::function;
 using std::pair;
 
-enum class ParseError 
+enum class Error 
 { 
 	None, 
 	MismatchedAngle, 
@@ -49,8 +49,16 @@ enum class ParseError
 	MisplacedSquare, 
 	UnknownPredicate, 
 	UnknownAttribute,
-	InvalidCondition 
+	InvalidCondition,
+	InvalidCurlyBrackets, 
+	MissingEndpoint,
+	TimedOut,
+	ReachedBound
 };
+
+
+
+
 // name of the auxiliary attribute used to store node labels
 const std::string NODELABEL_ATTR = "__NODELABEL__";
 // prefix for node labels
@@ -65,7 +73,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 {
 	std::string str_aux;
 
-	while (i < rpq.size()) {
+	while ((unsigned)i < rpq.size()) {
 		if (rpq[i]==')') // closing bracket means this (sub)expression ends
 			return str_aux;
 		else if (rpq[i] == '<') { // a predicate starts
@@ -75,7 +83,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 			if (rpq[i]=='%') { // is the predicate reversed?
 				i++; // remove %
 				bool reading_attrs = false;
-				while (i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
+				while ((unsigned)i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
 				{
 					s += rpq[i];
 					if (rpq[i] == '[') { reading_attrs = true; }
@@ -88,7 +96,7 @@ std::string parse(const std::string& rpq, int64_t& i,
 				std::string s_aux("<");
 				s += '%';
 				bool reading_attrs = false;
-				while (i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
+				while ((unsigned)i < rpq.size() and (rpq[i]!='>' or reading_attrs)) 
 				{
 					s += rpq[i];
 					if (rpq[i] == '[') { reading_attrs = true; }
@@ -414,7 +422,7 @@ string parse_node_labels(const string& rpq)
 // Checks existence of attribute and predicate names 
 // and collects them to pred_map and attr_map.
 // Returns true if the query syntax is valid.
-ParseError parse_query(const string& input_rpq, string& parsed_rpq, 
+Error parse_query(const string& input_rpq, string& parsed_rpq, 
                        string& query_type, vector<uint64_t>& pred_vec,
                        const unordered_map<string, uint64_t>& map_P, // all predicates
                        unordered_map<string, uint64_t>& pred_map, // only those needed
@@ -437,38 +445,38 @@ ParseError parse_query(const string& input_rpq, string& parsed_rpq,
 	{
 		if (rpq[i] == '<' and not reading_attrs) // predicate begins
 		{
-			if (reading_preds) return ParseError::MismatchedAngle;
+			if (reading_preds) return Error::MismatchedAngle;
 			reading_preds = true; 
 			pred_name.clear();
 		}
 		else if (rpq[i] == '>' and not reading_attrs) // predicate ends
 		{
-			if (not reading_preds) return ParseError::MismatchedAngle;
+			if (not reading_preds) return Error::MismatchedAngle;
 			reading_preds = false;
 			pred_name += '>';
-			if (map_P.find(pred_name) == map_P.end()) return ParseError::UnknownPredicate;
+			if (map_P.find(pred_name) == map_P.end()) return Error::UnknownPredicate;
 			pred_map[pred_name] = map_P.at(pred_name);
 			pred_vec.push_back(map_P.at(pred_name));
 		}
 		else if (rpq[i] == '[') // attribute begins
 		{
-			if (not reading_preds) return ParseError::MisplacedSquare;
-			if (reading_attrs) return ParseError::MismatchedSquare;
+			if (not reading_preds) return Error::MisplacedSquare;
+			if (reading_attrs) return Error::MismatchedSquare;
 			reading_attrs = true;
 			reading_attr_name = true;
 			attr_name.clear();
 		}
 		else if (rpq[i] == ']') // attribute ends
 		{
-			if (not reading_attrs) return ParseError::MismatchedSquare;
-			if (reading_attr_name) return ParseError::InvalidCondition;
+			if (not reading_attrs) return Error::MismatchedSquare;
+			if (reading_attr_name) return Error::InvalidCondition;
 			reading_attrs = false;
 		}
 		else if (rpq[i] == ' ' and reading_attr_name) // attribute name ends
 		{
 			if (attr_map.find(attr_name) == attr_map.end())
 			{
-				if (map_A.find(attr_name) == map_A.end()) return ParseError::UnknownAttribute;
+				if (map_A.find(attr_name) == map_A.end()) return Error::UnknownAttribute;
 				attr_map[attr_name] = map_A.at(attr_name);   
 			}
 			reading_attr_name = false;
@@ -494,7 +502,7 @@ ParseError parse_query(const string& input_rpq, string& parsed_rpq,
 		} 
 	}
 
-	return ParseError::None;
+	return Error::None;
 }
 
 
