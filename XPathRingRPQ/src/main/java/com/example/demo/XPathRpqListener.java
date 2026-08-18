@@ -23,7 +23,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	private boolean deletedStep = false;
 
 	private boolean insideAttributeTest = false;
-	private Object attributeValue;
+	private String attributeValue;
 
 	private final boolean verbose = false;
 
@@ -149,11 +149,22 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	}
 
 	@Override
+	public void enterPrimaryExpr(xpathRpqParser.PrimaryExprContext ctx) {
+		this.warnIf(!this.insideAttributeTest, "Literals may be used only in attribute tests");
+	}
+
+
+	@Override
 	public void exitPrimaryExpr(xpathRpqParser.PrimaryExprContext ctx) {
 		if (this.verbose) System.out.println("exitPrimaryExpr");
 		//Checking if the child node is leaf node
 		if (ctx.getChild(0).getChild(0) == null) {
-			this.attributeValue = ctx.getChild(0);
+			String value = ctx.getChild(0).toString();
+			if (value.matches("'.*'") || value.matches("\".*\"")) {
+				this.attributeValue = value.substring(1, value.length()-1);
+			} else {
+				this.attributeValue = value;
+			}
 		} else {
 			this.warnIf(true, "Functions, variables and parenthesized expressions are unimplemented");
 		}	
