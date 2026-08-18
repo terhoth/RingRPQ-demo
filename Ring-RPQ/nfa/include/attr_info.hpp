@@ -16,7 +16,7 @@ const std::string NULL_VALUE = "_";
 // Stores information about an attribute
 typedef struct
 { 
-	int id;
+	uint64_t id;
 	enum { Edge, Node } location; 
 	enum { None, Str, Int, Flt } type;
 } AttrInfo;

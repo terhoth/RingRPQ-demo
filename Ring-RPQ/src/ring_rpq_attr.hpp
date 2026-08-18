@@ -26,6 +26,7 @@
 #ifndef RING_RPQ_ATTR
 #define RING_RPQ_ATTR
 
+#include <iostream>
 #include <cstdint>
 #include <chrono>
 #include <set>
@@ -43,8 +44,8 @@
 #include "query_config.hpp"
 #include "parse_query_attr.cpp"
 #include "wt_helper.hpp"
-#include "selectivity.hpp"
 #include "attr_info.hpp"
+#include "load_index_util.cpp"
 
 #define ELEMENTS 0
 #define RUN_QUERY 0
@@ -68,8 +69,10 @@ typedef std::tuple<uint64_t, uint64_t, uint64_t, uint64_t> spo_triple_with_id;
 
 
 
+
 template<class Container = std::stack<interval_state_type>>
-class ring_rpq_attr {
+class ring_rpq_attr 
+{
 
 	// The wavelet tree L_S has been replaced with a int_vector,
 	// to make the iteration of all triples in an interval possible.
@@ -91,65 +94,153 @@ class ring_rpq_attr {
 	uint64_t max_P;
 	uint64_t max_O;
 	uint64_t nTriples;  // number of triples
+ 
+	std::unordered_map<uint64_t, std::string> P_id_to_name;
+	std::unordered_map<std::string, uint64_t> P_name_to_id;
+	std::unordered_map<uint64_t, std::string> SO_id_to_name;
+	std::unordered_map<std::string, uint64_t> SO_name_to_id;
+	std::unordered_map<std::string, AttrInfo> A_name_to_info;
 
 	// query-specific vector containing the useful automata state sets for each bwt node
 	std::vector<word_t> B_array;
 
 public:
 
-	ring_rpq_attr() { ; }
+	ring_rpq_attr(): real_max_P(0), max_S(0), max_P(0), max_O(0), nTriples(0) {}
 
-	// Assumes the triples have been stored in a vector<spo_triple_with_id>,
-	// including a reflexive edge labeled NODE_SYMBOL for each node, with id max_p+1.
-	ring_rpq_attr(vector<spo_triple_with_id>& Data, 
-					const vector<unordered_map<uint64_t, string>>& _str_attributes,
-					const vector<unordered_map<uint64_t, int>>& _int_attributes,
-					const vector<unordered_map<uint64_t, float>>& _flt_attributes,
-					bool verbose = true) 
+	ring_rpq_attr(std::string filename)
 	{
+		construct(filename);
+	}
+
+
+	// Constructs the ring index based on data from the given file.
+	// Expects the file to consist of whitespace-separated rows,
+	// each containing a triple and edge attribute values.
+	// Also expects to find files filename.P, filename.SO and possibly filename.A.
+	// (More information about data format in the README file in Ring-RPQ directory.)
+	// Note that after construction the index still needs to saved with method save.
+	void construct(std::string filename, bool verbose = false)
+	{
+		ifstream ifs(filename.c_str());
+		if (!ifs.is_open()) throw std::invalid_argument("Could not open " + filename);
+		if (verbose) cout << "Opened " << filename << " successfully" << endl;
+		
 		auto start = timer::now();
 
-		// find maximum subject, predicate and object
-		max_S = get<0>(Data[0]);
-		max_P = get<1>(Data[0]);
-		max_O = get<2>(Data[0]);
-		for (uint64_t i = 1; i < Data.size(); i++) {
-			if (max_S < get<0>(Data[i])) max_S = get<0>(Data[i]);
-			if (max_P < get<1>(Data[i])) max_P = get<1>(Data[i]);
-			if (max_O < get<2>(Data[i])) max_O = get<2>(Data[i]);
-		}
-		real_max_P = max_P;
-	
-		// for every triple, adds its reverse (using a predicate
-		// shifted by max_P, so 1 becomes max_P+1 in the reverse,
-		// and so on)
-		if (verbose) cout << "  > Adding inverted edges";
-		uint64_t d = Data.size();
-		spo_triple_with_id triple_aux;
-		for (uint64_t i = 0; i < d; i++) 
+		// Read attribute names and types, 
+		// and count how many attributes there are
+		if (verbose) cout << "reading attributes..." << endl;
+		std::vector<AttrInfo> edge_attr_infos;
+		std::vector<AttrInfo> node_attr_infos;
+		auto attr_counts = load_attribute_info(filename, A_name_to_info, &edge_attr_infos, &node_attr_infos);
+		int n_of_str_attrs = get<0>(attr_counts); 
+		int n_of_int_attrs = get<1>(attr_counts); 
+		int n_of_flt_attrs = get<2>(attr_counts); 
+
+		// initialize maps for storing attributes values
+		std::vector<std::unordered_map<uint64_t, std::string>> _str_attributes(n_of_str_attrs);
+		std::vector<std::unordered_map<uint64_t, int>> _int_attributes(n_of_int_attrs);
+		std::vector<std::unordered_map<uint64_t, float>> _flt_attributes(n_of_flt_attrs);
+
+		// Gather the triples into a vector Data, and read edge attributes
+
+		// (the fourth uint64_t below is the triple's index, comparable to a edge id)
+		using spo_triple_with_id = tuple<uint64_t, uint64_t, uint64_t, uint64_t>;
+		vector<spo_triple_with_id> Data;
+
+		// find largest predicate
+		ifstream P_ifs((filename + ".P").c_str());
+		uint64_t max_p = 0;
+		uint64_t p;
+		while (P_ifs >> p)
 		{
-			if (get<1>(Data[i]) == real_max_P) continue; // ignore reflexive node edges
-			triple_aux = Data[i];
-			Data.push_back(spo_triple_with_id(get<2>(Data[i]), get<1>(Data[i]), 
-			                                  get<0>(Data[i]), get<3>(Data[i])));
-			get<0>(Data[i]) = get<0>(triple_aux);
-			get<1>(Data[i]) = get<1>(Data[i]) + real_max_P;
-			get<2>(Data[i]) = get<2>(triple_aux);
-			get<3>(Data[i]) = get<3>(triple_aux);
+			if (p > max_p) max_p = p;
+			P_ifs.ignore(numeric_limits<streamsize>::max(), '\n');
 		}
+		real_max_P = max_p + 1;
+		max_P = max_p + 1;
+
+		if (verbose) cout << "reading triples..." << endl;
+		uint64_t s, o;
+		uint64_t triple_id = 0;
+		string str_value;
+		while (ifs >> s >> p >> o) // read triple
+		{
+			// read edge attribute values
+			for (AttrInfo attr : edge_attr_infos)
+			{
+				ifs >> str_value;
+				if (str_value != NULL_VALUE)
+				{
+					if (attr.type == AttrInfo::Str)
+					{
+						_str_attributes.at(attr.id)[triple_id] = str_value;
+					}
+					else if (attr.type == AttrInfo::Int)
+					{
+						_int_attributes.at(attr.id)[triple_id] = stoi(str_value);
+					}
+					else if (attr.type == AttrInfo::Flt)
+					{
+						_flt_attributes.at(attr.id)[triple_id] = stof(str_value);
+					}
+				} 
+			}
+			// add the triple to Data
+			Data.push_back(spo_triple_with_id(s, p + real_max_P, o, triple_id));
+			Data.push_back(spo_triple_with_id(o, p, s, triple_id));
+			triple_id++;
+
+			if (p + real_max_P > max_P) max_P = p + real_max_P;
+			if (s > max_S) max_S = s;
+			if (o > max_O) max_O = o;
+		}
+
+		// Read node attributes:
+		if (verbose) cout << "reading nodes..." << endl;
+		ifstream SO_ifs((filename + ".SO").c_str());
+		uint64_t node_id;
+		while (SO_ifs >> node_id)
+		{
+			for (AttrInfo attr : node_attr_infos)
+			{
+				SO_ifs >> str_value;
+				if (str_value != NULL_VALUE)
+				{
+					if (attr.type == AttrInfo::Str)
+					{
+						_str_attributes.at(attr.id)[triple_id] = str_value;
+					}
+					else if (attr.type == AttrInfo::Int)
+					{
+						_int_attributes.at(attr.id)[triple_id] = stoi(str_value);
+					}
+					else if (attr.type == AttrInfo::Flt)
+					{
+						_flt_attributes.at(attr.id)[triple_id] = stof(str_value);
+					}
+				}
+			}
+			// add a reflexive edge to store node attributes, with an unused predicate id
+			Data.push_back(spo_triple_with_id(node_id, max_p + 1, node_id, triple_id));
+			triple_id++;
+		}
+
 		Data.shrink_to_fit();
-		max_P += real_max_P;
-		if (verbose) cout << "... [done]" << endl;
-
-		if (verbose) cout << "  > Triples set = " 
-		                  << Data.size() * sizeof(spo_triple_with_id) << " bytes" << endl;
-		fflush(stdout);
-
+		
+		if (verbose)
+		{
+			cout << "--Indexing " << Data.size() << " triples " 
+			     << "with " << A_name_to_info.size() << " attributes "
+			     << "(str: "<< n_of_str_attrs 
+			     << ", int: " << n_of_int_attrs 
+			     << ", flt: " << n_of_flt_attrs << ")" << endl;
+		}
 
 		nTriples = Data.end() - Data.begin();
 
-		if (verbose) cout << "  > Determining number of elements per symbol";
-		fflush(stdout);
+		if (verbose) cout << "  > Determining number of elements per symbol" << flush;
 		uint64_t alphabet_SO = (max_S < max_O) ? max_O : max_S;
 
 		std::vector<uint32_t> M_O(alphabet_SO + 1, 0), M_P(max_P + 1, 0);
@@ -276,23 +367,23 @@ public:
 		if (verbose) cout << "-- Index constructed successfully" << endl;
 		if (verbose)
 		{
-			int initial_time = duration_cast<seconds>(sort1_start - start).count();
-			int sort1_time = duration_cast<seconds>(sort1_stop - sort1_start).count();
-			int construct1_time = duration_cast<seconds>(sort2_start - sort1_stop).count();
-			int sort2_time = duration_cast<seconds>(sort2_stop - sort2_start).count();
-			int construct2_time = duration_cast<seconds>(stop - sort2_stop).count();
-			printf("%d, %d, %d, %d, %d\n", initial_time, sort1_time, construct1_time, 
-			                                             sort2_time, construct2_time);
+			int initial_time = duration_cast<milliseconds>(sort1_start - start).count();
+			int sort1_time = duration_cast<milliseconds>(sort1_stop - sort1_start).count();
+			int construct1_time = duration_cast<milliseconds>(sort2_start - sort1_stop).count();
+			int sort2_time = duration_cast<milliseconds>(sort2_stop - sort2_start).count();
+			int construct2_time = duration_cast<milliseconds>(stop - sort2_stop).count();
+			int total_time = duration_cast<milliseconds>(stop - start).count();
+			printf("Time: read %d + sort %d + construct %d + sort %d + construct %d = %d ms\n", 
+			       initial_time, sort1_time, construct1_time, sort2_time, construct2_time, total_time);
 		}
 
 	};
 
+
+
 	// Size of the index in bytes
 	// (not completely accurate due to the attributes)
 	uint64_t size() {
-		//cout << "L_S.size() = " << L_S.size() << " bytes" << endl;
-		//cout << "L_P.size() = " << L_P.size() << " bytes" << endl;
-		//cout << "nTriples = " << nTriples << endl;
 		unsigned int attrs_size = 0;
 		for (unsigned int a = 0; a < str_attributes.size(); a++)
 			attrs_size += str_attributes.at(a).size() * sizeof(std::string);
@@ -311,8 +402,9 @@ public:
 		return max_P;
 	}
 
+
+	// Saves the index structure into the directory of the given data file.
 	void save(string filename) {
-		//L_S.save(filename + ".bwts");
 		sdsl::store_to_file(L_S, filename + ".L_S");
 		
 		std::ofstream fp_C(filename + ".C_S");
@@ -359,19 +451,42 @@ public:
 		ofs << max_O << endl;
 	};
 
-	void load(string filename)
-	{
-		cout << "Loading L_S" << endl; fflush(stdout);
-		//L_S.load(filename + ".bwts");
+
+	// Loads an index structure that was saved with method save (above).
+	// Query evaluation is possible after loading.
+	void load(string filename, bool verbose = false)
+	{	
+		// Open input files
+		ifstream ifs_SO(filename + ".SO", ifstream::in);
+		if (!ifs_SO.is_open()) throw invalid_argument("Could not open" + filename + ".SO");
+		ifstream ifs_P(filename + ".P", ifstream::in);
+		if (!ifs_P.is_open()) throw invalid_argument("Could not open" + filename + ".P");
+		if (verbose) cout << "Opened file " << filename << " successfully" << endl;
+
+		// ensure index is empty before loading
+		C_S.clear();
+		str_attributes.clear();
+		int_attributes.clear();
+		flt_attributes.clear();
+		P_id_to_name.clear();
+		P_name_to_id.clear();
+		SO_id_to_name.clear();
+		SO_name_to_id.clear();
+		A_name_to_info.clear();
+		B_array.clear();
+
+		// Get attribute info (id, Edge/Node, Str/Int/Flt)
+		load_attribute_info(filename, A_name_to_info);
+
+		if (verbose) cout << "Loading L_S" << endl;
 		sdsl::load_from_file(L_S, filename + ".L_S");
 		{
 		 std::ifstream ifs_C_S(filename + ".C_S");
 		 uint64_t c;
 		 while (ifs_C_S >> c) { C_S.push_back(c); }
 		}
-		//sdsl::load_from_file(C_S, filename + ".C_S"); // C_S ei ole sdsl:stä
 		
-		cout << "Loading attr.str" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.str" << endl;
 		{
 		 std::ifstream ifs_attr_str(filename + ".attr.str");
 		 unsigned int map_size;
@@ -387,7 +502,7 @@ public:
 			}
 		 }
 		}		
-		cout << "Loading attr.int" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.int" << endl;
 		{
 		 std::ifstream ifs_attr_int(filename + ".attr.int");
 		 unsigned int map_size;
@@ -403,7 +518,7 @@ public:
 			}
 		 }
 		}
-		cout << "Loading attr.flt" << endl; fflush(stdout);
+		if (verbose) cout << "Loading attr.flt" << endl;
 		{
 		 std::ifstream ifs_attr_flt(filename + ".attr.flt");
 		 unsigned int map_size;
@@ -420,9 +535,9 @@ public:
 		 }
 		}
 
-		cout << "Loading L_P" << endl; fflush(stdout);
+		if (verbose) cout << "Loading L_P" << endl;
 		L_P.load(filename + ".bwtp");
-		cout << "Loading done" << endl; fflush(stdout);
+		if (verbose) cout << "Loading done" << endl;
 		std::ifstream ifs(filename + ".nTriples");
 		ifs >> nTriples;
 		ifs >> real_max_P;
@@ -431,6 +546,37 @@ public:
 		ifs >> max_O;
 
 		B_array = std::vector<word_t>(4 * max_P, 0);
+
+
+		if (verbose) cout << "Loading node names" << endl;
+		SO_name_to_id.reserve(std::max(max_S, max_O));
+		SO_id_to_name.reserve(std::max(max_S, max_O));
+		uint64_t id;
+		string name;
+		while (ifs_SO >> id >> name)
+		{
+			SO_name_to_id[name] = id;
+			SO_id_to_name[id] = name;
+			ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
+		}
+		if (verbose) cout << "Loading predicate names" << endl;
+		P_name_to_id.reserve(real_max_P);
+		P_id_to_name.reserve(real_max_P);
+		uint64_t max_p = 0;
+		while (ifs_P >> id >> name)
+		{
+			if (id == 0) throw std::invalid_argument("predicate ids must nonzero");
+			P_name_to_id[name] = id;
+			P_id_to_name[id] = name;
+			if (id > max_p) max_p = id;
+			ifs_P.ignore(numeric_limits<streamsize>::max(), '\n');
+		}
+		// give the node symbol an unused id
+		P_name_to_id[NODE_PREDICATE] = max_p + 1;
+		P_id_to_name[max_p + 1] = NODE_PREDICATE;
+		// give the wildcard edge an unused id
+		P_name_to_id[WILDCARD_PREDICATE] = 0;
+		P_id_to_name[0] = WILDCARD_PREDICATE;
 	};
 
 	uint64_t pred_selectivity(uint64_t pred_id) {
@@ -442,6 +588,157 @@ public:
 		return (pred_id > real_max_P) ? pred_id - real_max_P : pred_id + real_max_P;
 	}
 
+
+	// Implemented by Terho Thorel.
+	// Evaluates a query, collecting in output the pairs of names of nodes
+	// that are connected by a path that matches the query.
+	// The query should consist of subject name, rpq expression, and object name,
+	// where the subject/object can be replaced with a question mark.
+	// (More detailed syntax information is in this repository's README file.)
+	// If bound is given, searches and returns only up to that many results.
+	// Quits early if the given timeout (in milliseconds) is exceeded.
+	// Returns an enum telling if a error or a timeout occurred or if the bound was reached.
+	Error evaluate(std::string query_line, 
+	                    std::vector<std::pair<std::string, std::string>>& output,
+	                    uint64_t bound = std::numeric_limits<uint64_t>::max(),
+	                    unsigned int timeout = TIME_OUT)
+	{
+		auto start_time = timer::now();
+		unordered_map<string, uint64_t> pred_map;
+		pred_map[NODE_PREDICATE] = P_name_to_id.at(NODE_PREDICATE);
+		unordered_map<string, AttrInfo> attr_map;
+		pred_map[WILDCARD_PREDICATE] = P_name_to_id.at(WILDCARD_PREDICATE);
+		std::string rpq, query, query_type;
+		vector<uint64_t> pred_vec;
+		uint64_t s_id = 0;
+		uint64_t o_id = 0;
+		vector<string> subqueries;
+
+		// separate subject, rpq and object from the query line
+		tie(s_id, rpq, o_id) = parse_subject_and_object(query_line, SO_name_to_id);
+		if (rpq == "") return Error::MissingEndpoint;
+
+		// extract possible branching subqueries into separate queries
+		rpq = extract_nested_subqueries(rpq, subqueries);
+		if (rpq == "") return Error::InvalidCurlyBrackets;
+
+		// evaluate the subqueries (if any)
+		prepare_nested_query(attr_map, subqueries.size());
+		for (unsigned int sub_q = 0; sub_q < subqueries.size(); sub_q++)
+		{
+			// parse
+			Error error = parse_query(subqueries.at(sub_q), query, query_type, pred_vec,
+			                          P_name_to_id, pred_map, A_name_to_info, attr_map);
+			if (error != Error::None) return error;
+
+			// evaluate (results are stored internally)
+			bool is_trivial = run_subquery(sub_q, query, pred_map, attr_map);
+			if (is_trivial)
+			{
+				// remove requirements related to this subquery, as they are trivially true
+				auto replace_regex = regex("\\[_" + to_string(sub_q) + "_ = 1\\]");
+				for (unsigned int _q = sub_q + 1; _q < subqueries.size(); _q++)
+				{
+					subqueries.at(_q) = regex_replace(subqueries.at(_q), replace_regex, "");
+				}
+				rpq = regex_replace(rpq, replace_regex, "");
+			}
+		}
+
+
+		// evaluate the main query
+		Error error = parse_query(rpq, query, query_type, pred_vec,
+		                          P_name_to_id, pred_map, A_name_to_info, attr_map);
+		if (error != Error::None) return error;
+		run_query(query, query_type, pred_vec, s_id, o_id, 
+		          pred_map, attr_map, output, bound);
+		cleanup_nested_query(subqueries.size());
+
+
+		if (duration_cast<milliseconds>(timer::now() - start_time).count() > timeout)
+		{
+			return Error::TimedOut;
+		}
+		else if (output.size() >= bound)
+		{
+			return Error::ReachedBound;
+		}
+		else return Error::None;
+	}
+
+
+	// Implemented by Terho Thorel.
+	// Collects all paths whose length is the given depth,
+	// starting from the node with the given name.
+	// Each returned path contains the sequence of predicate names
+	// with the endpoint node name appended to its end.
+	// Edges are followed either forwards, backwards, or both,
+	// depending on the boolean arguments.
+	void find_paths(std::string start_node, unsigned int depth, 
+	                std::vector<std::vector<std::string>>& paths,
+	                bool forward = true, bool backward = false, 
+	                timer::time_point start_time = timer::now())
+	{
+		if (SO_name_to_id.find(start_node) == SO_name_to_id.end())
+		{
+			throw std::invalid_argument("Unknown node: " + start_node);
+		}
+		uint64_t start_id = SO_name_to_id.at(start_node);
+
+		// recursive depth-first-search algorithm
+		// (paths.back() is the current path)
+
+		// create empty path on first call
+		if (paths.size() == 0) paths.push_back({});
+
+		if (paths.back().size() < depth)
+		{
+			// find the current node's interval in L_P
+			uint64_t left = L_P.get_C(start_id);
+			uint64_t right = L_P.get_C(start_id + 1) - 1;
+			// go through all possible predicates
+			std::vector<uint64_t> p_vec;
+			L_P.all_values_in_range_bounded(left, right, p_vec, right - left + 1);
+			for (uint64_t p : p_vec)
+			{
+				if (p == 0 or p == real_max_P) continue; // are not actual edges
+
+				if ((forward and p < real_max_P) or (backward and p > real_max_P))
+				{
+					// find the interval in L_S for nodes reached with p
+					std::pair<uint64_t, uint64_t> I_s = L_P.backward_step(left, right, p);
+					I_s.first += C_S[p];
+					I_s.second += C_S[p];
+					for (uint64_t i = I_s.first; i <= I_s.second; i++)
+					{
+						// advance recursively
+						paths.back().push_back(P_id_to_name.at(p % real_max_P));
+						std::string next_node = SO_id_to_name.at(L_S[i]);
+						find_paths(next_node, depth, paths, forward, backward, start_time);
+					}
+				}
+
+				auto time = timer::now();
+				auto time_span = duration_cast<milliseconds>(time - start_time);
+				if (time_span.count() > TIME_OUT) break;
+			}
+		}
+		else
+		{
+			// save the resulting path with the endpoint node name
+			paths.back().push_back(SO_id_to_name.at(start_id));
+			// continue with the same path (without end node)
+			paths.emplace_back(paths.back());
+			paths.back().pop_back();
+		}
+
+		// retract along the path
+		if (paths.back().size() > 0)
+		{
+			paths.back().pop_back();
+		}
+		else paths.pop_back(); // remove empty path when recursion ends
+	}
 
 
 
@@ -728,7 +1025,7 @@ private:
 			if (object_vector.size() >= bound) return false;
 			// check for timeout
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
@@ -771,7 +1068,7 @@ private:
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
 			// check for timeout
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
@@ -784,7 +1081,7 @@ private:
 	// Returns true iff a timeout occurs.
 	bool _rpq_const_s_to_var_o(RpqAutomataAttr &A,
 	                           uint64_t initial_object,
-	                           std::vector<std::pair<uint64_t, uint64_t>> &solutions,
+	                           std::vector<std::pair<std::string, std::string>> &solutions,
 	                           bool const_to_var,
 	                           timer::time_point start,
 	                           uint64_t bound = std::numeric_limits<uint64_t>::max())
@@ -804,7 +1101,8 @@ private:
 		if (A.atFinal(current_D, BWD)) // are empty paths accepted?
 		{
 			// add solution
-			solutions.emplace_back(initial_object, initial_object);
+			std::string name = SO_id_to_name.at(initial_object);
+			solutions.emplace_back(name, name);
 			// mark initial states as visited
 			D_array[initial_object] = D_array.atPos(initial_object) | current_D;
 		}
@@ -813,8 +1111,10 @@ private:
 		std::function<bool(uint64_t)> outputter = [this, &solutions, const_to_var, 
 		                                           initial_object, bound](uint64_t i)
 		{
-			if (const_to_var) solutions.emplace_back(initial_object, L_S[i]);
-			else              solutions.emplace_back(L_S[i], initial_object);
+			std::string name1 = SO_id_to_name.at(initial_object);
+			std::string name2 = SO_id_to_name.at(L_S[i]);
+			if (const_to_var) solutions.emplace_back(name1, name2);
+			else              solutions.emplace_back(name2, name1);
 			return (solutions.size() >= bound);
 		};
 
@@ -827,7 +1127,7 @@ private:
 			
 			if (solutions.size() >= bound) return false;
 			stop = timer::now();
-			time_span = duration_cast<microseconds>(stop - start);
+			time_span = duration_cast<milliseconds>(stop - start);
 			total_time = time_span.count();
 			if (total_time > TIME_OUT) return true;
 		}
@@ -879,7 +1179,7 @@ private:
 			if (path_exists) return true;
 			// check for timeout
 			stop = high_resolution_clock::now();
-			total_time = duration_cast<microseconds>(stop - start).count();
+			total_time = duration_cast<milliseconds>(stop - start).count();
 			if (total_time > TIME_OUT) time_out = true;
 		}
 		return false;
@@ -893,7 +1193,7 @@ private:
 	void or_query_var_to_var(const std::string &input_rpq, uint64_t n_or,
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// remove attribute constraints and create acceptors from them
@@ -932,7 +1232,7 @@ private:
 
 		// initialize clock
 		auto stop = timer::now();
-		auto total_time = duration_cast<seconds>(stop - start_time).count();
+		auto total_time = duration_cast<milliseconds>(stop - start_time).count();
 		bool time_out = (total_time > TIME_OUT);
 
 		// set to keep track of duplicate results
@@ -977,11 +1277,14 @@ private:
 					if (insert_info.second)
 					{
 						// wasn't yet in result_set, no risk of duplicate result
-						output.push_back(*insert_info.first);
+						const auto& id_pair = *insert_info.first;
+						std::string name1 = SO_id_to_name.at(id_pair.first);
+						std::string name2 = SO_id_to_name.at(id_pair.second);
+						output.emplace_back(name1, name2);
 						if (output.size() >= bound) return;
 					}
 					stop = timer::now();
-					total_time = duration_cast<seconds>(stop - start_time).count();
+					total_time = duration_cast<milliseconds>(stop - start_time).count();
 					time_out = (total_time > TIME_OUT);
 				}
 			}
@@ -993,7 +1296,7 @@ private:
 	void single_predicate_query(uint64_t p, bool is_reversed, uint64_t s, uint64_t o, 
 	                            unordered_map<std::string, AttrInfo>& attributes_map,
 	                            vector<vector<pair<AttrInfo, Acceptor>>>& attr_acceptors,
-	                            std::vector<std::pair<uint64_t, uint64_t>>& output,
+	                            std::vector<std::pair<std::string, std::string>>& output,
 	                            uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// initialize clock, to check for timeout
@@ -1042,14 +1345,16 @@ private:
 				auto iter = result_set.find(subj);
 				if (iter == result_set.end())
 				{
-					output.emplace_back(subj, o);
+					std::string name1 = SO_id_to_name.at(subj);
+					std::string name2 = SO_id_to_name.at(o);
+					output.emplace_back(name1, name2);
 					result_set.insert(subj);
 					if (output.size() >= bound) return;
 				}
 
 				// check for timeout
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1070,13 +1375,15 @@ private:
 				auto iter = result_set.find(obj);
 				if (iter == result_set.end()) 
 				{
-					output.emplace_back(s, obj);
+					std::string name1 = SO_id_to_name.at(s);
+					std::string name2 = SO_id_to_name.at(obj);
+					output.emplace_back(name1, name2);
 					result_set.insert(obj);
 					if (output.size() >= bound) return;
 				}
 
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1093,10 +1400,11 @@ private:
 					// run single predicate query (var to const) to find subjects
 					single_predicate_query(p, true, 0, obj, attributes_map, attr_acceptors, output);
 					if (output.size() >= bound) return;
+					result_set.insert(obj);
 				}
 				
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1114,13 +1422,15 @@ private:
 
 				if (L_S[i] == s)
 				{
-					output.emplace_back(s, o);
+					std::string name1 = SO_id_to_name.at(s);
+					std::string name2 = SO_id_to_name.at(o);
+					output.emplace_back(name1, name2);
 					return;
 				}
 
 				// check for timeout
 				stop = timer::now();
-				total_time = duration_cast<seconds>(stop - start).count();
+				total_time = duration_cast<milliseconds>(stop - start).count();
 				time_out = (total_time > TIME_OUT);
 			}
 		}
@@ -1135,7 +1445,7 @@ private:
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
 	                          uint64_t initial_object,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 
@@ -1162,7 +1472,7 @@ private:
 	                          unordered_map<std::string, uint64_t> &predicates_map,
 	                          unordered_map<std::string, AttrInfo> &attributes_map,
 	                          uint64_t initial_object,
-	                          std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                          std::vector<std::pair<std::string, std::string>> &output,
 	                          uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1184,7 +1494,7 @@ private:
 	void rpq_const_to_const(const std::string &rpq, uint64_t s, uint64_t o,
 	                        unordered_map<std::string, uint64_t> &predicates_map,
 	                        unordered_map<std::string, AttrInfo> &attributes_map,
-	                        std::vector<std::pair<uint64_t, uint64_t>> &output)
+	                        std::vector<std::pair<std::string, std::string>> &output)
 	{
 
 		// create an automaton from the query
@@ -1199,7 +1509,9 @@ private:
 		high_resolution_clock::time_point start = high_resolution_clock::now();
 		if (_rpq_const_to_const(A, s, o, start))
 		{
-			output.emplace_back(s, o);
+			std::string name1 = SO_id_to_name.at(s);
+			std::string name2 = SO_id_to_name.at(o);
+			output.emplace_back(name1, name2);
 		}
 
 		// clean markings
@@ -1215,7 +1527,7 @@ private:
 	void rpq_var_to_var_os(const std::string &rpq,
 	                       unordered_map<std::string, uint64_t> &predicates_map,
 	                       unordered_map<std::string, AttrInfo> &attributes_map,
-	                       std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                       std::vector<std::pair<std::string, std::string>> &output,
 	                       uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1258,7 +1570,7 @@ private:
 	void rpq_var_to_var_so(const std::string &rpq,
 	                       unordered_map<std::string, uint64_t> &predicates_map,
 	                       unordered_map<std::string, AttrInfo> &attributes_map,
-	                       std::vector<std::pair<uint64_t, uint64_t>> &output,
+	                       std::vector<std::pair<std::string, std::string>> &output,
 	                       uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// create an automaton from the query
@@ -1300,11 +1612,8 @@ private:
 
 
 
-
-public:
-
 	// Evaluates the given regular path query.
-	// Collects results in query_output as pairs of path endpoints.
+	// Collects results in output as pairs of path endpoint names.
 	// Parameters:
 	//   query_type: the sequence of operators in the query
 	//   pred_vec: the sequence of predicates in the query
@@ -1312,14 +1621,14 @@ public:
 	//   o_id: the ending node's identigier, or 0 if none
 	//   pred_map: mapping from predicate names to ids
 	//   attr_map: mapping from attribute names to type information structs
-	//   query_output: vector for the returned results
+	//   output: vector for the returned results
 	// (Copied with small modifications from query-index-basic.cpp)
 	void run_query(std::string query, std::string query_type, 
 	               std::vector<uint64_t>& pred_vec, 
 	               uint64_t s_id, uint64_t o_id,
 	               std::unordered_map<std::string, uint64_t>& pred_map,
 	               std::unordered_map<std::string, AttrInfo>& attr_map,
-	               std::vector<std::pair<uint64_t, uint64_t>>& query_output,
+	               std::vector<std::pair<std::string, std::string>>& output,
 	               uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
 		// Choose correct method to use for evaluation:
@@ -1335,35 +1644,35 @@ public:
 				if (query.at(i) == '%') { is_reversed_pred = true; break; }
 			
 			single_predicate_query(pred_vec.back(), is_reversed_pred, s_id, o_id, 
-			                       attr_map, attr_acceptors, query_output, bound);
+			                       attr_map, attr_acceptors, output, bound);
 		}
 		else if (s_id == 0 and o_id == 0) // both endpoints are variable
 		{
 			// determine the direction to search (subjects first or objects first)
 			if (query_type == "") // single wildcard predicate
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound); 
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound); 
 			else if (query_type == "+" or query_type == "*")
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type[query_type.size() - 1] == '*' and query_type[0] != '*')
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type[0] == '*' or query_type[0] == '+')
-				rpq_var_to_var_os(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_os(query, pred_map, attr_map, output, bound);
 			else if (std::all_of(query_type.begin(), query_type.end(), [](char c){return c == '|';})
 				 and std::all_of(pred_vec.begin(), pred_vec.end(), [](uint64_t id){return id != 0;}))
-				or_query_var_to_var(query, pred_vec.size(), pred_map, attr_map, query_output, bound);
+				or_query_var_to_var(query, pred_vec.size(), pred_map, attr_map, output, bound);
 			else if (pred_selectivity(pred_vec.front()) <= pred_selectivity(pred_vec.back()))
-				rpq_var_to_var_so(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else
-				rpq_var_to_var_os(query, pred_map, attr_map, query_output, bound);
+				rpq_var_to_var_os(query, pred_map, attr_map, output, bound);
 		} 
 		else // at least one endpoint is fixed
 		{
 			if (s_id != 0 and o_id == 0)
-				rpq_const_s_to_var_o(query, pred_map, attr_map, s_id, query_output, bound);
+				rpq_const_s_to_var_o(query, pred_map, attr_map, s_id, output, bound);
 			else if (s_id == 0 and o_id != 0)
-				rpq_var_s_to_const_o(query, pred_map, attr_map, o_id, query_output, bound);
+				rpq_var_s_to_const_o(query, pred_map, attr_map, o_id, output, bound);
 			else
-				rpq_const_to_const(query, s_id, o_id, pred_map, attr_map, query_output);
+				rpq_const_to_const(query, s_id, o_id, pred_map, attr_map, output);
 		}
 	}
 
@@ -1421,74 +1730,6 @@ public:
 		unmark(A);
 
 		return is_trivial;
-	}
-
-
-
-	// Implemented by Terho Thorel.
-	// Collects all paths whose length is the given depth,
-	// starting from the node with the given id.
-	// Each returned path contains the sequence of predicate id's
-	// with the endpoint node id appended to its end.
-	// Edges are followed either forwards, backwards, or both,
-	// depending on the boolean arguments.
-	void find_paths(uint64_t start_id, unsigned int depth, 
-	                std::vector<std::vector<uint64_t>>& paths,
-	                bool forward = true, bool backward = false, 
-	                timer::time_point start_time = timer::now())
-	{
-		// recursive depth-first-search algorithm
-		// (paths.back() is the current path)
-
-		// create empty path on first call
-		if (paths.size() == 0) paths.push_back({});
-
-		if (paths.back().size() < depth)
-		{
-			// find the current node's interval in L_P
-			uint64_t left = L_P.get_C(start_id);
-			uint64_t right = L_P.get_C(start_id + 1) - 1;
-			// go through all possible predicates
-			std::vector<uint64_t> p_vec;
-			L_P.all_values_in_range_bounded(left, right, p_vec, right - left + 1);
-			for (uint64_t p : p_vec)
-			{
-				if (p == 0 or p == real_max_P) continue; // are not actual edges
-
-				if ((forward and p < real_max_P) or (backward and p > real_max_P))
-				{
-					// find the interval in L_S for nodes reached with p
-					std::pair<uint64_t, uint64_t> I_s = L_P.backward_step(left, right, p);
-					I_s.first += C_S[p];
-					I_s.second += C_S[p];
-					for (uint64_t i = I_s.first; i <= I_s.second; i++)
-					{
-						// advance recursively
-						paths.back().push_back(p % real_max_P);
-						find_paths(L_S[i], depth, paths, forward, backward, start_time);
-					}
-				}
-
-				auto time = timer::now();
-				auto time_span = duration_cast<seconds>(time - start_time);
-				if (time_span.count() > TIME_OUT) break;
-			}
-		}
-		else
-		{
-			// save the resulting path with the endpoint node id
-			paths.back().push_back(start_id);
-			// continue with the same path (without node id)
-			paths.emplace_back(paths.back());
-			paths.back().pop_back();
-		}
-
-		// retract along the path
-		if (paths.back().size() > 0)
-		{
-			paths.back().pop_back();
-		}
-		else paths.pop_back(); // remove empty path when recursion ends
 	}
 
 };
