@@ -1,3 +1,12 @@
+/*
+ * File: XPathRpqListener.java
+ * Author: Terho Thorel, based on XPathCypherListener.java by SSSvensk
+ * 	For the original code, see Github repository SSSVensk/XPathCypher
+ * Description: ANTLR4 listener that constructs the RingRPQ query during parse.
+ *  Also does some syntax and semantics checks, collecting a list of warning messages.
+ * 
+ */
+
 package com.example.demo;
 
 import java.util.ArrayList;
