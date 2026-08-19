@@ -18,8 +18,13 @@
  *   C++11 flags, same as every other Ring-RPQ target — no std::optional,
  *   std::filesystem, or other post-C++11 standard library features.
  *
- *   Must be run with its working directory set to Ring-RPQ/: it resolves
- *   ./data/<database_name> relative to the current directory.
+ *   Resolves <data_dir>/<database_name>, where data_dir is (in order):
+ *   $RING_RPQ_DATA_DIR if set; else the contents of data-dir.conf next to
+ *   this binary's cwd (gitignored — a single-line path, same file
+ *   run-workers.sh and the backend read, so the location only needs setting
+ *   once); else "data". Both the file and the "data" fallback are relative
+ *   to the current directory, so with neither override this must be run
+ *   with its working directory set to Ring-RPQ/.
  *
  *   Usage: ring-rpq-worker <database_name> [conninfo]
  *   DB connection string: argv[2] if given, then $RING_RPQ_DB_CONNINFO, else
@@ -33,6 +38,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -44,8 +50,6 @@ namespace {
 constexpr int DEFAULT_MAX_RESULTS = 2000;
 constexpr int POLL_INTERVAL_SECONDS = 1;
 
-const std::string DATA_DIR = "data";
-
 volatile std::sig_atomic_t g_running = 1;
 
 void handle_shutdown_signal(int) { g_running = 0; }
@@ -54,6 +58,42 @@ std::string resolve_conninfo(int argc, char** argv) {
     if (argc > 2) return argv[2];
     if (const char* env = std::getenv("RING_RPQ_DB_CONNINFO")) return env;
     return "postgresql://ringrpq:ringrpq@localhost:5432/ringrpq";
+}
+
+const char* const DATA_DIR_CONFIG_FILE = "data-dir.conf";
+
+std::string trim(const std::string& s) {
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return "";
+    size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(start, end - start + 1);
+}
+
+// Reads the first non-empty, non-comment ('#') line of data-dir.conf, if
+// present. Returns false if the file doesn't exist or has no usable line.
+bool read_data_dir_config_file(std::string& out) {
+    std::ifstream f(DATA_DIR_CONFIG_FILE);
+    if (!f) return false;
+    std::string line;
+    while (std::getline(f, line)) {
+        std::string trimmed = trim(line);
+        if (trimmed.empty() || trimmed[0] == '#') continue;
+        out = trimmed;
+        return true;
+    }
+    return false;
+}
+
+// Database folder location, in order: $RING_RPQ_DATA_DIR if set; else
+// data-dir.conf next to the cwd, if present (same file run-workers.sh and
+// the backend read — set it once there instead of exporting the env var
+// everywhere); else "data". The file and the "data" fallback are both
+// resolved relative to the current directory.
+std::string resolve_data_dir() {
+    if (const char* env = std::getenv("RING_RPQ_DATA_DIR")) return env;
+    std::string from_file;
+    if (read_data_dir_config_file(from_file)) return from_file;
+    return "data";
 }
 
 // ---------------------------------------------------------------------------
@@ -174,19 +214,21 @@ void process_row(DbHandle& db, ring_rpq_attr_bfs& graph, const ClaimedRow& row) 
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <database_name> [conninfo]" << std::endl;
-        std::cerr << "  database_name is relative to Ring-RPQ/data/, e.g. test_correctness/test.dat"
+        std::cerr << "  database_name is relative to the data dir (default: Ring-RPQ/data/, "
+                     "override with $RING_RPQ_DATA_DIR), e.g. test_correctness/test.dat"
                   << std::endl;
         return 1;
     }
     std::string database_name = argv[1];
     std::string conninfo = resolve_conninfo(argc, argv);
+    std::string data_dir = resolve_data_dir();
 
     std::signal(SIGINT, handle_shutdown_signal);
     std::signal(SIGTERM, handle_shutdown_signal);
 
     ring_rpq_attr_bfs graph;
     try {
-        std::string index_path = DATA_DIR + "/" + database_name;
+        std::string index_path = data_dir + "/" + database_name;
         auto load_start = std::chrono::steady_clock::now();
         graph.load(index_path);
         auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -209,7 +251,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "ring-rpq-worker: connected, polling query_cache for database_name='" << database_name
-              << "' every " << POLL_INTERVAL_SECONDS << "s (run from Ring-RPQ/ so ./data resolves)" << std::endl;
+              << "' every " << POLL_INTERVAL_SECONDS << "s (data dir: " << data_dir << ")" << std::endl;
 
     while (g_running) {
         try {

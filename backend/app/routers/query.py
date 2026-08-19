@@ -12,7 +12,33 @@ from ..models import QueryCache, TranslationFailure
 
 router = APIRouter(prefix="/query", tags=["query"])
 
-RING_RPQ_DATA_DIR = Path(__file__).resolve().parents[3] / "Ring-RPQ" / "data"
+RING_RPQ_DIR = Path(__file__).resolve().parents[3] / "Ring-RPQ"
+# Single-line path, '#' comments allowed — the same file run-workers.sh and
+# ring-rpq-worker read, so the database folder location only needs setting
+# once (gitignored; see Ring-RPQ/run-workers.sh's header comment).
+DATA_DIR_CONFIG_FILE = RING_RPQ_DIR / "data-dir.conf"
+
+
+def _read_data_dir_config_file() -> str | None:
+    if not DATA_DIR_CONFIG_FILE.is_file():
+        return None
+    for line in DATA_DIR_CONFIG_FILE.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return line
+    return None
+
+
+def _resolve_data_dir() -> Path:
+    # Order of precedence: $RING_RPQ_DATA_DIR / backend/.env, then
+    # data-dir.conf, then the Ring-RPQ/data/ default.
+    override = settings.ring_rpq_data_dir or _read_data_dir_config_file()
+    if override:
+        return Path(override).expanduser().resolve()
+    return RING_RPQ_DIR / "data"
+
+
+RING_RPQ_DATA_DIR = _resolve_data_dir()
 
 # Sibling files a base graph file (x.dat) must have alongside it to be a usable index.
 REQUIRED_GRAPH_SUFFIXES = [

@@ -1,5 +1,6 @@
 /Ring-RPQ/build/
 /Ring-RPQ/run/
+/Ring-RPQ/data-dir.conf
 /Ring-RPQ/data/*
 !/Ring-RPQ/data/test_correctness/
 /Ring-RPQ/data/test_correctness/*dat.*

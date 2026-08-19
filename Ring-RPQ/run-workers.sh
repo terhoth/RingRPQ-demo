@@ -2,11 +2,11 @@
 #
 # run-workers.sh — start one ring-rpq-worker instance per usable database.
 #
-# Discovers databases under data/ the same way backend/app/routers/query.py's
-# list_databases() does (REQUIRED_SUFFIXES below must stay in sync with that
-# file's REQUIRED_GRAPH_SUFFIXES if it ever changes — this script duplicates
-# that rule rather than calling the backend, so it works standalone without
-# the backend needing to be up).
+# Discovers databases under data/ (override with $RING_RPQ_DATA_DIR) the same
+# way backend/app/routers/query.py's list_databases() does (REQUIRED_SUFFIXES
+# below must stay in sync with that file's REQUIRED_GRAPH_SUFFIXES if it ever
+# changes — this script duplicates that rule rather than calling the backend,
+# so it works standalone without the backend needing to be up).
 #
 # Idempotent: re-running this (e.g. after dropping a new database's files
 # into data/) only starts workers for databases that don't already have a
@@ -21,13 +21,34 @@
 #
 # Must be runnable from anywhere; it locates itself and works from Ring-RPQ/
 # regardless of the caller's cwd.
+#
+# The database folder location can be overridden (e.g. an external volume
+# instead of Ring-RPQ/data/), in order of precedence:
+#   1. $RING_RPQ_DATA_DIR, if set
+#   2. data-dir.conf next to this script (gitignored, single line, '#'
+#      comments allowed) — the same file ring-rpq-worker and the backend
+#      read, so the location only needs setting once
+#   3. Ring-RPQ/data/
+# Either way it's inherited by every worker process this script starts (as
+# $RING_RPQ_DATA_DIR, exported below), so ring-rpq-worker resolves the same
+# directory. Prefer an absolute path — it isn't resolved relative to
+# SCRIPT_DIR.
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-DATA_DIR="$SCRIPT_DIR/data"
+DATA_DIR_CONFIG_FILE="$SCRIPT_DIR/data-dir.conf"
+if [[ -z "${RING_RPQ_DATA_DIR:-}" && -f "$DATA_DIR_CONFIG_FILE" ]]; then
+    RING_RPQ_DATA_DIR="$(grep -vE '^[[:space:]]*(#|$)' "$DATA_DIR_CONFIG_FILE" | head -n1 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+fi
+# Export (only if non-empty) so every worker process this script starts
+# inherits the same resolved value — an exported-but-empty var would
+# otherwise shadow ring-rpq-worker's own "data"/data-dir.conf fallback.
+[[ -n "${RING_RPQ_DATA_DIR:-}" ]] && export RING_RPQ_DATA_DIR
+
+DATA_DIR="${RING_RPQ_DATA_DIR:-$SCRIPT_DIR/data}"
 RUN_DIR="$SCRIPT_DIR/run"
 WORKER_BIN="$SCRIPT_DIR/build/ring-rpq-worker"
 
