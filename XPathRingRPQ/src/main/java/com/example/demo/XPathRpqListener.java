@@ -66,6 +66,9 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	@Override
 	public void enterMain(xpathRpqParser.MainContext ctx) {
 		this.queryStack.push(query);	
+		this.axis.push("");
+		this.startEdge.push("");
+		this.endEdge.push("");
 	}
 
 	@Override
@@ -99,7 +102,6 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitEqualityExpr(xpathRpqParser.EqualityExprContext ctx) {
 		if (ctx.getChildCount() > 1) {
 			if (this.verbose) System.out.println("exitEqualityExpr");
-			this.warnIf(!this.insideAttributeTest, "Equality expressions may only be used to test attributes");
 			this.warnIf(this.attributeValue == null,
 			            "Equality expressions must consist of attribute name, operand and value");
 			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
@@ -148,20 +150,10 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		this.warnIf(ctx.getChildCount() > 1, "Multiplication has not been implemented");
 	}
 
-	//@Override
-	//public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
-	//	this.warnIf(ctx.getChildCount() > 1, "Union has not been implemented");
-	//}
 	@Override
 	public void enterPathExprNoRoot(xpathRpqParser.PathExprNoRootContext ctx) {
 		this.warnIf(ctx.parent.parent.getChildCount() > 1, "Union has not been implemented");
 	}
-
-	@Override
-	public void enterPrimaryExpr(xpathRpqParser.PrimaryExprContext ctx) {
-		this.warnIf(!this.insideAttributeTest, "Literals may be used only in attribute tests");
-	}
-
 
 	@Override
 	public void exitPrimaryExpr(xpathRpqParser.PrimaryExprContext ctx) {
@@ -169,13 +161,16 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		//Checking if the child node is leaf node
 		if (ctx.getChild(0).getChild(0) == null) {
 			String value = ctx.getChild(0).toString();
+			this.warnIf(value.charAt(0) == '(', "Parenthezised expressions are not allowed");
+			this.warnIf(value.charAt(0) != '(' && !this.insideAttributeTest, 
+			            "Literals may be used only in attribute tests");
 			if (value.matches("'.*'") || value.matches("\".*\"")) {
 				this.attributeValue = value.substring(1, value.length()-1);
 			} else {
 				this.attributeValue = value;
 			}
 		} else {
-			this.warnIf(true, "Functions, variables and parenthesized expressions are unimplemented");
+			this.warnIf(true, "Functions and variables are unimplemented");
 		}	
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
@@ -198,10 +193,13 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			} else {
 				// put a space before the last vertex, and remove &
 				int i = this.queryStack.peek().lastIndexOf("/<&");
-				this.queryStack.peek().delete(i, i+3);
-				this.queryStack.peek().insert(i, " <");
+				if (i != -1) {
+					this.queryStack.peek().delete(i, i+3);
+					this.queryStack.peek().insert(i, " <");
+				}
 			}
 		}
+		this.firstStep = false;
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
@@ -240,12 +238,14 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			this.endEdge.push("");
 			this.axis.push("attribute");
 			this.insideAttributeTest = true;
-		} else if (sb.toString() == null || !sb.toString().isEmpty()) {
+		} else {
+			this.warnIf(sb.toString().equals("namespace"), "Namespaces have not been implemented");
+			this.warnIf(sb.toString().equals("following") || sb.toString().equals("following-sibling") ||
+			            sb.toString().equals("preceding") || sb.toString().equals("preceding-sibling"), 
+			            "Following/preceding axes have no interpretation in graphs");
 			this.startEdge.push("<");
 			this.endEdge.push(">");
 			this.axis.push("child");
-		} else {
-			throw new IllegalArgumentException("Unknown axis " + sb.toString());
 		}
 
 		this.queryStack.peek().append(this.startEdge.peek());
@@ -316,9 +316,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 
 	@Override
 	public void enterNameTest(xpathRpqParser.NameTestContext ctx) {
-		if (this.verbose) System.out.println("enterNameTest");
 		this.nCName = "";
-		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
@@ -342,10 +340,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 
 	@Override
 	public void exitNCName(xpathRpqParser.NCNameContext ctx) {
-		if (this.verbose) System.out.println("exitNCName");
 		StringBuilder sb = new StringBuilder();
 		this.nCName = sb.append(ctx.getChild(0)).toString();	
-		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
@@ -365,6 +361,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("exitPredicate");
 		StringBuilder predicate = this.queryStack.pop();
+		this.firstStep = false;
 		this.warnIf(this.queryStack.isEmpty(), "The entire query seems to be inside a predicate??");
 		if (this.insideAttributeTest) {
 			this.insideAttributeTest = false;
