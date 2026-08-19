@@ -1,4 +1,5 @@
 /Ring-RPQ/build/
+/Ring-RPQ/run/
 /Ring-RPQ/data/*
 !/Ring-RPQ/data/test_correctness/
 /Ring-RPQ/data/test_correctness/*dat.*
@@ -6,6 +7,6 @@
 !/Ring-RPQ/data/test_correctness/*dat.SO
 !/Ring-RPQ/data/test_correctness/*dat.A
 /XPathRingRPQ/target/
-/Ring-RPQ/tmp/
+/static/
 
 __pycache__/
