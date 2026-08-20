@@ -801,6 +801,7 @@ private:
 		for (uint64_t i = 0; i < pred_vec.size(); i++)
 		{
 			uint64_t& p = pred_vec[i];
+			if (p == real_max_P) continue; // skip reflexive node edge
 			// get interval of subjects that are reached with p
 			I_s = L_P.backward_step(I_p.left(), I_p.right(), p);
 			c = C_S[p];
