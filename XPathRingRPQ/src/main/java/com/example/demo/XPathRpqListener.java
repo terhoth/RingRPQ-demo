@@ -5,6 +5,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Stack;
 
+import org.antlr.v4.runtime.tree.TerminalNode;
+
 
 public class XPathRpqListener extends xpathRpqBaseListener {
 
@@ -25,7 +27,9 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 
 	private final boolean verbose = false;
 
-	private Output output = new Output();
+	private ArrayList<String> errors = new ArrayList<String>();	
+	private int i = 0;
+
 
 	public void setQuery(Object s) {
 		this.query.append(s);
@@ -33,6 +37,21 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 
 	public Object getQuery() {
 		return this.query;
+	}
+
+	public ArrayList<String> getErrorMessages() {
+		return this.errors;
+	}
+
+	private void warnIf(boolean condition, String msg) {
+		if (condition) {
+			this.errors.add("Syntax warning: " + msg + " (" + this.i + ")");
+		}
+	}
+
+	@Override
+	public void visitTerminal(TerminalNode node) {
+		this.i = node.getSymbol().getStopIndex();
 	}
 
 	@Override
@@ -50,11 +69,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	}
 
 	@Override
-	public void exitOrExpr(xpathRpqParser.OrExprContext ctx) {
-		if (ctx.getChildCount() > 1) {
-			String warnMessage = "Logical OR has not been implemented";
-			output.printWarning(warnMessage);
-		}
+	public void enterAndExpr(xpathRpqParser.AndExprContext ctx) {
+		this.warnIf(ctx.parent.getChildCount() > 1, "Logical OR has not been implemented");
 	}
 
 	@Override 
@@ -63,6 +79,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			// separate and-combined expressions into different brackets
 			// e.g. [@attr1 = 1 and @attr2 = 2] --> [@attr1 = 1][@attr2 = 2]
 			if (this.verbose) System.out.println("enterEqualityExpr");
+			this.warnIf(!this.insideAttributeTest, "Logical AND is not allowed outside attribute test");
 			this.queryStack.peek().append("][");
 			this.insideAttributeTest = false;
 			if (this.verbose) System.out.println(this.queryStack.peek());
@@ -73,19 +90,23 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitEqualityExpr(xpathRpqParser.EqualityExprContext ctx) {
 		if (ctx.getChildCount() > 1) {
 			if (this.verbose) System.out.println("exitEqualityExpr");
+			this.warnIf(!this.insideAttributeTest, "Equality expressions may only be used to test attributes");
+			this.warnIf(this.attributeValue == null,
+			            "Equality expressions must consist of attribute name, operand and value");
 			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
-			this.queryStack.peek().append(this.attributeValue.toString());
-			if (this.verbose) System.out.println(this.queryStack.peek());
-
-			if (!insideAttributeTest) {
-				String warnMessage = "Equality expressions may only be used to test attributes";
-				output.printWarning(warnMessage);
+			if (this.attributeValue != null) {
+				this.queryStack.peek().append(this.attributeValue.toString());
 			}
+			if (this.verbose) System.out.println(this.queryStack.peek());
 		}
-		if (ctx.getChildCount() > 3) {
-			String warnMessage = "Too many operands in equality expression";
-			output.printWarning(warnMessage);
-		}
+	}
+
+	@Override
+	public void enterRelationalExpr(xpathRpqParser.RelationalExprContext ctx) {
+		this.warnIf(this.insideAttributeTest && ctx.parent.getChildCount() > 3, 
+		            "Too many operands in equality expression");
+		this.warnIf(!this.insideAttributeTest && ctx.parent.getChildCount() > 1, 
+		            "Equality operators are not allowed outside attribute tests");
 	}
 
 	@Override 
@@ -95,40 +116,36 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
 			this.queryStack.peek().append(this.attributeValue.toString());
 			if (this.verbose) System.out.println(this.queryStack.peek());
-	
-			if (!insideAttributeTest) {
-				String warnMessage = "Relational expressions should begin with an @-prefixed attribute name";
-				output.printWarning(warnMessage);
-			}
+			this.warnIf(!this.insideAttributeTest, 
+			            "Relational expressions should begin with an @-prefixed attribute name");
 		}
-		if (ctx.getChildCount() > 3) {
-			String warnMessage = "Too many operands in relational expression";
-			output.printWarning(warnMessage);
-		}
+	}
+
+	@Override
+	public void enterAdditiveExpr(xpathRpqParser.AdditiveExprContext ctx) {
+		this.warnIf(this.insideAttributeTest && ctx.parent.getChildCount() > 3, 
+		            "Too many operands in relational expression");
+		this.warnIf(!this.insideAttributeTest && ctx.parent.getChildCount() > 1, 
+		            "Comparison operators are not allowed outside attribute tests");
 	}
 
 	@Override
 	public void exitAdditiveExpr(xpathRpqParser.AdditiveExprContext ctx) {
-		if (ctx.getChildCount() > 1) {
-			String warnMessage = "Addition has not been implemented";
-			output.printWarning(warnMessage);
-		}
+		this.warnIf(ctx.getChildCount() > 1, "Addition has not been implemented");
 	}
 
 	@Override
 	public void exitMultiplicativeExpr(xpathRpqParser.MultiplicativeExprContext ctx) {
-		if (ctx.getChildCount() > 1) {
-			String warnMessage = "Multiplication has not been implemented";
-			output.printWarning(warnMessage);
-		}
+		this.warnIf(ctx.getChildCount() > 1, "Multiplication has not been implemented");
 	}
 
+	//@Override
+	//public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
+	//	this.warnIf(ctx.getChildCount() > 1, "Union has not been implemented");
+	//}
 	@Override
-	public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
-		if (ctx.getChildCount() > 1) {
-			String warnMessage = "Union has not been implemented";
-			output.printWarning(warnMessage);
-		}
+	public void enterPathExprNoRoot(xpathRpqParser.PathExprNoRootContext ctx) {
+		this.warnIf(ctx.parent.parent.getChildCount() > 1, "Union has not been implemented");
 	}
 
 	@Override
@@ -138,8 +155,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		if (ctx.getChild(0).getChild(0) == null) {
 			this.attributeValue = ctx.getChild(0);
 		} else {
-			String warnMessage = "Functions, variables and parenthesized expressions are unimplemented";
-			output.printWarning(warnMessage);
+			this.warnIf(true, "Functions, variables and parenthesized expressions are unimplemented");
 		}	
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
@@ -155,10 +171,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		if (this.queryStack.size() == 1) {
 			// this is the end of the main query
 			int n_of_steps = (ctx.getChildCount() + 1) / 2;
-			if (n_of_steps <= 1) {
-				String warnMessage = "The query must contain at least one edge!";
-				output.printWarning(warnMessage);
-			} else if (n_of_steps % 2 == 0 || this.deletedStep) {
+			this.warnIf(n_of_steps <= 1, "The query must contain at least one edge!");
+			if (n_of_steps % 2 == 0 || this.deletedStep) {
 				// no vertex endpoint specified
 				this.queryStack.peek().append(" ?y");
 			} else {
@@ -220,16 +234,13 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 
 	@Override
 	public void exitAbbreviatedStep(xpathRpqParser.AbbreviatedStepContext ctx) {
-		String warnMessage = "Abbreviated steps have not been implemented";
-		output.printWarning(warnMessage);
+		this.warnIf(true, "Abbreviated steps have not been implemented");
 	}
 
 	@Override
 	public void enterStep(xpathRpqParser.StepContext ctx) {
-		if (this.insideAttributeTest) {
-			String warnMessage = "Attribute tests must consist of an attribute name, operator and value.";
-			output.printWarning(warnMessage);
-		}
+		this.warnIf(this.insideAttributeTest, 
+		            "Attribute tests must consist of an attribute name, operator and value.");
 		if (!this.firstStep && this.queryStack.peek().charAt(this.queryStack.peek().length()-1) != ' ') {
 			if (this.verbose) System.out.println("enterStep");
 			this.queryStack.peek().append("/");
@@ -245,10 +256,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	
 		if (firstStep && this.queryStack.size() == 1) {
 			// this is the very first vertex of the main query
-			if (this.axis.peek() != "child")  {
-				String warnMessage = "The first step should contain only a vertex name (or wildcard vertex)";
-				output.printWarning(warnMessage);
-			}
+			this.warnIf(this.axis.peek() != "child", 
+			            "The first step should contain only a vertex name (or wildcard vertex)");
 			if (this.queryStack.peek().toString().equals("<&>")) {
 				// replace unspecified start vertex with variable
 				this.queryStack.pop();
@@ -302,12 +311,18 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			this.queryStack.peek().append('&');
 		}
 		this.queryStack.peek().append(this.nCName);
+		this.warnIf(ctx.getChildCount() > 1, "Namespace identifier discarded");
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
+	public void exitQName(xpathRpqParser.QNameContext ctx) {
+		this.warnIf(ctx.getChildCount() > 1, "Namespace identifier discarded");
+	}
+
+	@Override
 	public void exitNCName(xpathRpqParser.NCNameContext ctx) {
-		if (this.verbose) System.out.println("exitNameTest");
+		if (this.verbose) System.out.println("exitNCName");
 		StringBuilder sb = new StringBuilder();
 		this.nCName = sb.append(ctx.getChild(0)).toString();	
 		if (this.verbose) System.out.println(this.queryStack.peek());
@@ -316,15 +331,10 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	@Override
 	public void enterPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("enterPredicate");
-		if (this.firstStep && this.queryStack.size() == 1) {
-			String warnMessage = "The first step should contain only a vertex name (or wildcard vertex)";
-			output.printWarning(warnMessage);
-		}	
+		this.warnIf(this.firstStep && this.queryStack.size() == 1,
+		            "The first step should contain only a vertex name (or wildcard vertex)");
 		int n_of_steps = (ctx.parent.parent.getChildCount() + 1) / 2;
-		if (this.insideAttributeTest) {
-			String warnMessage = "Attribute tests may not contain predicates";
-			output.printWarning(warnMessage);
-		}
+		this.warnIf(this.insideAttributeTest, "Attribute tests may not contain predicates");
 		this.firstStep = true;
 		this.insideAttributeTest = false;
 		this.queryStack.push(new StringBuilder());
@@ -335,6 +345,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	public void exitPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("exitPredicate");
 		StringBuilder predicate = this.queryStack.pop();
+		this.warnIf(this.queryStack.isEmpty(), "The entire query seems to be inside a predicate??");
 		if (this.insideAttributeTest) {
 			this.insideAttributeTest = false;
 			this.queryStack.peek().append("[");
