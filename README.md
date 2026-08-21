@@ -24,6 +24,12 @@ The public interface of `ring_rpq_attr` consist of four methods:
 
 For more information, see `Ring-RPQ/README.md`.
 
+### Data
+
+The executable `yago-prepare` can be used to import data from turtle (.ttl) format, with the restriction that turtle's semicolon and bracket shorthands should not be used, i.e. each line should be an explicit triple or prefix definition. It is confirmed to work at least with the YAGO 4.6 knowledge base's fact file.
+
+After the data is imported into e.g. Ring-RPQ/data/example/example.dat, it can be optimized by calling `./sort-dict-bfs ../data/example/example.dat` in the build directory.
+
 ## XPathRingRPQ
 
 ANTLR4-based translation from an extended form of XPath to the syntax accepted by Ring-RPQ.
