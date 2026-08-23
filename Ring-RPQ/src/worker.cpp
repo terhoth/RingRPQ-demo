@@ -124,11 +124,25 @@ std::string json_escape(const std::string& s) {
     return out;
 }
 
+// Ring-RPQ node labels carry their enclosing angle brackets as part of the
+// literal string (Ring-RPQ/README.md: labels "must be enclosed in angle
+// brackets"), so evaluate() returns e.g. "<A>", not "A". Redundant once
+// stored as a JSON string value, so it's stripped here, once, right before
+// writing — not retroactively, so rows written before this change keep
+// their brackets until re-executed.
+std::string strip_angle_brackets(const std::string& s) {
+    if (s.size() >= 2 && s.front() == '<' && s.back() == '>') {
+        return s.substr(1, s.size() - 2);
+    }
+    return s;
+}
+
 std::string build_result_json(const std::vector<std::pair<std::string, std::string>>& rows, bool truncated) {
     std::string out = "{\"columns\":[\"subject\",\"object\"],\"rows\":[";
     for (size_t i = 0; i < rows.size(); ++i) {
         if (i) out += ",";
-        out += "[\"" + json_escape(rows[i].first) + "\",\"" + json_escape(rows[i].second) + "\"]";
+        out += "[\"" + json_escape(strip_angle_brackets(rows[i].first)) + "\",\"" +
+               json_escape(strip_angle_brackets(rows[i].second)) + "\"]";
     }
     out += "],\"truncated\":";
     out += (truncated ? "true" : "false");
