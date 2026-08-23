@@ -134,10 +134,15 @@ def get_rpq_result(id: int, db: Annotated[Session, Depends(get_db)]):
     entry = db.get(QueryCache, id)
     if entry is None:
         raise HTTPException(status_code=404, detail="Query not found")
+
+    result = entry.result
+    if isinstance(result, list):
+        result = sorted(result, key=lambda row: (row.get("subject"), row.get("object")))
+
     return {
         "id": entry.id,
         "status": entry.status,
-        "result": entry.result,
+        "result": result,
         "error_message": entry.error_message,
         "translation_warning_message": entry.translation_warning_message,
         "submitted_at": entry.submitted_at,
