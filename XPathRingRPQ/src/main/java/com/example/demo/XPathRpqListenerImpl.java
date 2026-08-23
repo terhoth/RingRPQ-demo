@@ -8,7 +8,7 @@ import java.util.Stack;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 
-public class XPathRpqListener extends xpathRpqBaseListener {
+public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 
 	private StringBuilder query = new StringBuilder();
 	private Stack<StringBuilder> queryStack = new Stack<StringBuilder>();
