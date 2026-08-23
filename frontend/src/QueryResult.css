@@ -59,6 +59,30 @@
   color: #c0392b;
 }
 
+.queryResultWarning {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.queryResultWarningHeading {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #b45309;
+}
+
+.queryResultWarningMessage {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #b45309;
+}
+
 .queryResultCount {
   margin: 0 0 8px;
   font-size: 13px;
@@ -114,5 +138,15 @@ table.queryResultTable th {
 
   .queryResultError {
     color: #ff6b6b;
+  }
+
+  .queryResultWarning {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .queryResultWarningHeading,
+  .queryResultWarningMessage {
+    color: #fbbf24;
   }
 }

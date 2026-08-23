@@ -141,14 +141,14 @@ std::string build_result_json(const std::vector<std::pair<std::string, std::stri
 // the enum value — so this is our own mapping for error_message.
 std::string describe_error(Error e) {
     switch (e) {
-        case Error::MismatchedAngle: return "Mismatched angle brackets";
+        case Error::MismatchedAngle: return "Vertex or edge name contains < or >?";
         case Error::MismatchedSquare: return "Mismatched square brackets";
         case Error::MisplacedSquare: return "Misplaced square brackets";
-        case Error::UnknownPredicate: return "Unknown predicate";
-        case Error::UnknownAttribute: return "Unknown attribute";
-        case Error::InvalidCondition: return "Invalid attribute condition";
-        case Error::InvalidCurlyBrackets: return "Mismatched or misplaced curly brackets";
-        case Error::MissingEndpoint: return "Could not find subject and/or object";
+        case Error::UnknownPredicate: return "Unknown edge name";
+        case Error::UnknownAttribute: return "Unknown vertex name";
+        case Error::InvalidCondition: return "Invalid attribute predicate";
+        case Error::InvalidCurlyBrackets: return "Location path predicate on an edge step?";
+        case Error::MissingEndpoint: return "Could not parse path endpoints";
         default: return "Query evaluation failed";
     }
 }

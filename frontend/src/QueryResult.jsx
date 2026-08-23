@@ -76,7 +76,7 @@ const QueryResult = ({ queryState }) => {
     return null
   }
 
-  const { id, result, errorMessage } = queryState
+  const { id, result, errorMessage, translationWarningMessage } = queryState
 
   return (
     <div className="queryResult" data-status={status}>
@@ -85,11 +85,18 @@ const QueryResult = ({ queryState }) => {
         {isInFlight && <span className="elapsedTime">{formatElapsed(elapsedSeconds)}</span>}
       </div>
 
+      {translationWarningMessage && (
+        <div className="queryResultWarning">
+          <p className="queryResultWarningHeading">Translation warning</p>
+          <p className="queryResultWarningMessage">{translationWarningMessage}</p>
+        </div>
+      )}
+
       {status === 'submitting' && <p className="queryResultHint">Sending the query to the backend…</p>}
 
       {status === 'translation_failed' && (
         <p className="queryResultError">
-          The query could not be translated into an executable form. (failure id: {id})
+          {errorMessage || `The query could not be translated into an executable form. (failure id: ${id})`}
         </p>
       )}
 

@@ -17,7 +17,7 @@ const NO_LIMIT = 0
  * @param {number} [params.timeoutSeconds] - Optional timeout limit, in seconds.
  * @param {number} [params.maxResults] - Optional cap on the number of answers returned.
  * @param {string} params.query - The query string typed by the user.
- * @returns {Promise<{status: 'translated', query_cache_id: number} | {status: 'translation_failed', translation_failure_id: number}>}
+ * @returns {Promise<{status: 'translated', query_cache_id: number} | {status: 'translation_failed', translation_failure_id: number, error_message: string | null}>}
  */
 export async function submitQuery({ databaseName, timeoutSeconds, maxResults, query }) {
   try {

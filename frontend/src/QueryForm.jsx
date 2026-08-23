@@ -75,7 +75,11 @@ const QueryForm = () => {
       })
 
       if (response.status === 'translation_failed') {
-        setQueryState({ status: 'translation_failed', id: response.translation_failure_id })
+        setQueryState({
+          status: 'translation_failed',
+          id: response.translation_failure_id,
+          errorMessage: response.error_message,
+        })
         return
       }
 
@@ -89,6 +93,7 @@ const QueryForm = () => {
             id: data.id,
             result: data.result,
             errorMessage: data.error_message,
+            translationWarningMessage: data.translation_warning_message,
             submittedAt: data.submitted_at,
             completedAt: data.completed_at,
           })

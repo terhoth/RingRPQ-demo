@@ -29,6 +29,7 @@ class QueryCache(Base):
     status = Column(Text, nullable=False, server_default="pending")
     result = Column(JSONB, nullable=True)
     error_message = Column(Text, nullable=True)
+    translation_warning_message = Column(Text, nullable=True)
     submitted_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"))
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
