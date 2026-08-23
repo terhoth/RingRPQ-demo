@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -40,6 +41,24 @@ def _resolve_data_dir() -> Path:
 
 
 RING_RPQ_DATA_DIR = _resolve_data_dir()
+
+# run-workers.sh tracks each database's worker via a pid file here, named by
+# sanitize() (database_name with '/' -> '_'). Mirrored here rather than
+# calling the script so a database is only reported as usable once its
+# worker can actually drain query_cache rows for it.
+RING_RPQ_RUN_DIR = RING_RPQ_DIR / "run"
+
+
+def _worker_is_running(database_name: str) -> bool:
+    pid_file = RING_RPQ_RUN_DIR / f"{database_name.replace('/', '_')}.pid"
+    if not pid_file.is_file():
+        return False
+    try:
+        pid = int(pid_file.read_text().strip())
+        os.kill(pid, 0)
+    except (OSError, ValueError):
+        return False
+    return True
 
 # Optional file at the data dir's root mapping a graph's relative .dat path (the
 # same string list_databases() returns) to a URL with that graph's documentation.
@@ -102,8 +121,11 @@ def _first_message(errors: list[str], prefix: str) -> str | None:
 def list_databases():
     graphs = []
     for dat_file in sorted(RING_RPQ_DATA_DIR.rglob("*.dat")):
-        if all(Path(f"{dat_file}{suffix}").is_file() for suffix in REQUIRED_GRAPH_SUFFIXES):
-            graphs.append(dat_file.relative_to(RING_RPQ_DATA_DIR).as_posix())
+        if not all(Path(f"{dat_file}{suffix}").is_file() for suffix in REQUIRED_GRAPH_SUFFIXES):
+            continue
+        database_name = dat_file.relative_to(RING_RPQ_DATA_DIR).as_posix()
+        if _worker_is_running(database_name):
+            graphs.append(database_name)
     return {"graphs": graphs, "docs": _read_graph_docs()}
 
 
