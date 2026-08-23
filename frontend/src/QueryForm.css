@@ -80,6 +80,16 @@
   cursor: not-allowed;
 }
 
+.databaseDocLink {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.databaseDocLink a {
+  color: var(--accent);
+}
+
 .errorMessage {
   margin: 0;
   font-size: 14px;

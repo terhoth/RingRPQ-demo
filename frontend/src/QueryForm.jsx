@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import './QueryForm.css'
 
-import { getDatabaseList } from './services/databases'
+import { getDatabases } from './services/databases'
 import { submitQuery, pollQueryResult } from './services/query'
 import QueryResult from './QueryResult'
 
 const QueryForm = () => {
   const [databaseList, setDatabaseList] = useState([])
+  const [databaseDocs, setDatabaseDocs] = useState({})
   const [isLoadingDatabases, setIsLoadingDatabases] = useState(true)
   const [databaseName, setDatabaseName] = useState('')
   const [timeoutSeconds, setTimeoutSeconds] = useState('')
@@ -25,8 +26,9 @@ const QueryForm = () => {
     const fetchDatabases = async () => {
       setIsLoadingDatabases(true)
       try {
-        const databases = await getDatabaseList()
-        setDatabaseList(databases)
+        const { graphs, docs } = await getDatabases()
+        setDatabaseList(graphs)
+        setDatabaseDocs(docs)
       } catch (err) {
         console.error('Error fetching database list:', err)
         setError('Could not load the list of databases.')
@@ -130,6 +132,14 @@ const QueryForm = () => {
               </option>
             ))}
           </select>
+          {databaseDocs[databaseName] && (
+            <p className="databaseDocLink">
+              Documentation for this graph is available{' '}
+              <a href={databaseDocs[databaseName]} target="_blank" rel="noopener noreferrer">
+                here
+              </a>.
+            </p>
+          )}
         </div>
 
         <div className="formRow">

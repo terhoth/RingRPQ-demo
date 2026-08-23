@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Annotated
 
@@ -39,6 +40,25 @@ def _resolve_data_dir() -> Path:
 
 
 RING_RPQ_DATA_DIR = _resolve_data_dir()
+
+# Optional file at the data dir's root mapping a graph's relative .dat path (the
+# same string list_databases() returns) to a URL with that graph's documentation.
+# Entries for graphs that aren't currently available are simply ignored by the
+# frontend, so this can be a superset of what list_databases() finds.
+GRAPH_DOC_FILE = RING_RPQ_DATA_DIR / "graph_doc.json"
+
+
+def _read_graph_docs() -> dict[str, str]:
+    if not GRAPH_DOC_FILE.is_file():
+        return {}
+    try:
+        data = json.loads(GRAPH_DOC_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {key: value for key, value in data.items() if isinstance(key, str) and isinstance(value, str)}
+
 
 # Sibling files a base graph file (x.dat) must have alongside it to be a usable index.
 REQUIRED_GRAPH_SUFFIXES = [
@@ -84,7 +104,7 @@ def list_databases():
     for dat_file in sorted(RING_RPQ_DATA_DIR.rglob("*.dat")):
         if all(Path(f"{dat_file}{suffix}").is_file() for suffix in REQUIRED_GRAPH_SUFFIXES):
             graphs.append(dat_file.relative_to(RING_RPQ_DATA_DIR).as_posix())
-    return {"graphs": graphs}
+    return {"graphs": graphs, "docs": _read_graph_docs()}
 
 
 @router.post("/submit")
