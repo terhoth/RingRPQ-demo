@@ -7,3 +7,17 @@
   padding: 20px 20px 48px;
   box-sizing: border-box;
 }
+
+.appLayout {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+}
+
+.queryConsole {
+  flex: 1 1 480px;
+  min-width: 0;
+}

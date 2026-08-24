@@ -1,0 +1,55 @@
+.querySyntaxCheatsheet {
+  flex: 1 1 420px;
+  max-width: 520px;
+  box-sizing: border-box;
+  padding: 24px 28px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.querySyntaxCheatsheet h3 {
+  font-family: var(--heading);
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--text-h);
+  margin: 20px 0 8px;
+}
+
+.querySyntaxCheatsheet h3:first-of-type {
+  margin-top: 4px;
+}
+
+.querySyntaxCheatsheet p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.querySyntaxCheatsheet ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.querySyntaxCheatsheet li {
+  margin-bottom: 6px;
+}
+
+.querySyntaxCheatsheet a {
+  color: var(--accent);
+}
+
+.querySyntaxCheatsheet code {
+  font-size: 13px;
+  padding: 1px 5px;
+}
+
+@media (max-width: 1024px) {
+  .querySyntaxCheatsheet {
+    max-width: 100%;
+  }
+}
