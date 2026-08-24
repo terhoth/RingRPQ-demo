@@ -31,6 +31,9 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	private boolean firstStep = true;
 	private boolean deletedStep = false;
 
+	private boolean firstStepWithPredicate = false;
+	private boolean stepContainsPredicate = false;
+
 	private boolean insideAttributeTest = false;
 	private String attributeValue;
 
@@ -187,8 +190,12 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			// this is the end of the main query
 			int n_of_steps = (ctx.getChildCount() + 1) / 2;
 			this.warnIf(n_of_steps <= 1, "The query must contain at least one edge!");
-			if (n_of_steps % 2 == 0 || this.deletedStep) {
-				// no vertex endpoint specified
+			this.warnIf(n_of_steps % 2 == 0, "The query must begin and end with a vertex");
+			if (this.deletedStep || this.stepContainsPredicate) {
+				// Either the end vertex is a wildcard, or
+				// the last vertex contains a predicate, 
+				// in which case a new variable end vertex needs to be added
+				// because Ring-RPQ doesn't allow attributes on endpoints.
 				this.queryStack.peek().append(" ?y");
 			} else {
 				// put a space before the last vertex, and remove &
@@ -266,6 +273,7 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 			this.queryStack.peek().append("/");
 			if (this.verbose) System.out.println(this.queryStack.peek());
 		}
+		if (this.queryStack.size() == 1) this.stepContainsPredicate = false;
 		this.deletedStep = false;
 	}
 
@@ -274,10 +282,8 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 		if (this.verbose) System.out.println("exitStep");
 		this.queryStack.peek().append(this.endEdge.peek());
 	
-		if (firstStep && this.queryStack.size() == 1) {
+		if (this.firstStep && this.queryStack.size() == 1) {
 			// this is the very first vertex of the main query
-			this.warnIf(this.axis.peek() != "child", 
-			            "The first step should contain only a vertex name (or wildcard vertex)");
 			if (this.queryStack.peek().toString().equals("<&>")) {
 				// replace unspecified start vertex with variable
 				this.queryStack.pop();
@@ -347,12 +353,17 @@ public class XPathRpqListener extends xpathRpqBaseListener {
 	@Override
 	public void enterPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("enterPredicate");
-		this.warnIf(this.firstStep && this.queryStack.size() == 1,
-		            "The first step should contain only a vertex name (or wildcard vertex)");
+		if (this.firstStep && this.queryStack.size() == 1) {
+			// As Ring-RPQ can't have predicates in path endpoints, 
+			// add variable vertex ?x to the beginning
+			StringBuilder tmpStep = this.queryStack.pop();
+			this.queryStack.push(new StringBuilder("?x ").append(tmpStep));
+		}
 		int n_of_steps = (ctx.parent.parent.getChildCount() + 1) / 2;
 		this.warnIf(this.insideAttributeTest, "Attribute tests may not contain predicates");
-		this.firstStep = true;
-		this.insideAttributeTest = false;
+		this.firstStep = true; // first inside this predicate
+		this.stepContainsPredicate = true; // the main query's step contains this predicate
+		this.insideAttributeTest = false; // until proven otherwise
 		this.queryStack.push(new StringBuilder());
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
