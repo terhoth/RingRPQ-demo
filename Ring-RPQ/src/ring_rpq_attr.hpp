@@ -50,9 +50,9 @@
 #define ELEMENTS 0
 #define RUN_QUERY 0
 
-using namespace std::chrono;
 using timer = std::chrono::high_resolution_clock;
-
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
 
 typedef struct {
 	bwt_interval interval;
@@ -103,6 +103,10 @@ class ring_rpq_attr
 
 	// query-specific vector containing the useful automata state sets for each bwt node
 	std::vector<word_t> B_array;
+
+	long int timeout;
+	timer::time_point start_time;
+	bool timed_out;
 
 public:
 
@@ -601,9 +605,10 @@ public:
 	Error evaluate(std::string query_line, 
 	                    std::vector<std::pair<std::string, std::string>>& output,
 	                    uint64_t bound = std::numeric_limits<uint64_t>::max(),
-	                    unsigned int timeout = TIME_OUT)
+	                    unsigned int evaluation_timeout = TIME_OUT)
 	{
-		auto start_time = timer::now();
+		start_timer(evaluation_timeout);
+
 		unordered_map<string, uint64_t> pred_map;
 		pred_map[NODE_PREDICATE] = P_name_to_id.at(NODE_PREDICATE);
 		unordered_map<string, AttrInfo> attr_map;
@@ -624,7 +629,7 @@ public:
 
 		// evaluate the subqueries (if any)
 		prepare_nested_query(attr_map, subqueries.size());
-		for (unsigned int sub_q = 0; sub_q < subqueries.size(); sub_q++)
+		for (unsigned int sub_q = 0; sub_q < subqueries.size() and !check_timeout(); sub_q++)
 		{
 			// parse
 			Error error = parse_query(subqueries.at(sub_q), query, query_type, pred_vec,
@@ -655,7 +660,7 @@ public:
 		cleanup_nested_query(subqueries.size());
 
 
-		if (duration_cast<milliseconds>(timer::now() - start_time).count() > timeout)
+		if (check_timeout())
 		{
 			return Error::TimedOut;
 		}
@@ -677,7 +682,7 @@ public:
 	void find_paths(std::string start_node, unsigned int depth, 
 	                std::vector<std::vector<std::string>>& paths,
 	                bool forward = true, bool backward = false, 
-	                timer::time_point start_time = timer::now())
+	                timer::time_point start_t = timer::now())
 	{
 		if (SO_name_to_id.find(start_node) == SO_name_to_id.end())
 		{
@@ -714,12 +719,11 @@ public:
 						// advance recursively
 						paths.back().push_back(P_id_to_name.at(p % real_max_P));
 						std::string next_node = SO_id_to_name.at(L_S[i]);
-						find_paths(next_node, depth, paths, forward, backward, start_time);
+						find_paths(next_node, depth, paths, forward, backward, start_t);
 					}
 				}
 
-				auto time = timer::now();
-				auto time_span = duration_cast<milliseconds>(time - start_time);
+				auto time_span = duration_cast<milliseconds>(timer::now() - start_t);
 				if (time_span.count() > TIME_OUT) break;
 			}
 		}
@@ -743,6 +747,21 @@ public:
 
 
 private:
+
+	void start_timer(uint64_t evaluation_timeout = TIME_OUT)
+	{
+		start_time = timer::now();
+		timeout = evaluation_timeout;
+		timed_out = false;
+	}
+
+	bool check_timeout()
+	{
+		if (timed_out) return true;
+		auto time = duration_cast<milliseconds>(timer::now() - start_time).count();
+		if (time > timeout) timed_out = true;
+		return timed_out;
+	}
 
 	// mark in the wavelet tree L_P 
 	// which automaton states are potentially useful for which ranges of predicates 
@@ -801,6 +820,7 @@ private:
 		for (uint64_t i = 0; i < pred_vec.size(); i++)
 		{
 			uint64_t& p = pred_vec[i];
+			if (p == real_max_P) continue; // skip reflexive node edge
 			// get interval of subjects that are reached with p
 			I_s = L_P.backward_step(I_p.left(), I_p.right(), p);
 			c = C_S[p];
@@ -989,16 +1009,9 @@ private:
 	// Assumes that B_array has been marked in L_P.
 	bool rpq_var_to_var_obtain_o(RpqAutomataAttr &A,
 	                             std::vector<uint64_t> &object_vector,
-	                             timer::time_point start,
 	                             uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
-		timer::time_point stop;
-		double total_time = 0.0;
-		duration<double> time_span;
-
 		initializable_array<word_t> D_array(4 * (max_O + 1), 0);
-
-		bool time_out = false;
 
 		word_t current_D = (word_t) A.getFinalStates();
 		if (A.atFinal(current_D, BWD)) return true;
@@ -1014,7 +1027,7 @@ private:
 
 		Container ist_container; //contains intervals with NFA states
 		ist_container.push(interval_state_type{bwt_interval(1, nTriples), current_D});
-		while (!time_out && !ist_container.empty()) 
+		while (!check_timeout() && !ist_container.empty()) 
 		{
 			// pop queue/stack (depends on class template argument)
 			auto ist_top = first_element(ist_container);
@@ -1023,11 +1036,6 @@ private:
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
 			// quit early if reached bound for results
 			if (object_vector.size() >= bound) return false;
-			// check for timeout
-			stop = timer::now();
-			time_span = duration_cast<milliseconds>(stop - start);
-			total_time = time_span.count();
-			if (total_time > TIME_OUT) time_out = true;
 		}
 		return false;
 	};
@@ -1036,17 +1044,10 @@ private:
 	// Like rpq_var_to_var_obtain_o (above),
 	// but results are marked into the auxiliary variable identified by q_attr
 	// instead of collecting them to a vector.
-	bool rpq_subquery_obtain_o(int q_attr, RpqAutomataAttr &A,
-	                           timer::time_point start)
+	bool rpq_subquery_obtain_o(int q_attr, RpqAutomataAttr &A)
 	{
-		timer::time_point stop;
-		double total_time = 0.0;
-		duration<double> time_span;
-
 		initializable_array<word_t> D_array(4 * (max_O + 1), 0);
 		
-		bool time_out = false;
-
 		word_t current_D = (word_t) A.getFinalStates();
 		if (A.atFinal(current_D, BWD)) return true;
 
@@ -1059,18 +1060,13 @@ private:
 
 		Container ist_container; // contains intervals with NFA states
 		ist_container.push(interval_state_type{bwt_interval(1, nTriples), current_D});
-		while (!time_out && !ist_container.empty()) 
+		while (!check_timeout() && !ist_container.empty()) 
 		{
 			// pop queue/stack (depending on class template argument)
 			auto ist_top = first_element(ist_container);
 			ist_container.pop();
 			// advance
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
-			// check for timeout
-			stop = timer::now();
-			time_span = duration_cast<milliseconds>(stop - start);
-			total_time = time_span.count();
-			if (total_time > TIME_OUT) time_out = true;
 		}
 		return false;
 	};
@@ -1079,17 +1075,12 @@ private:
 	// Searches the RPQ represented by automaton A, starting from initial_object.
 	// Collects result path endpoint pairs in the solutions vector.
 	// Returns true iff a timeout occurs.
-	bool _rpq_const_s_to_var_o(RpqAutomataAttr &A,
+	void _rpq_const_s_to_var_o(RpqAutomataAttr &A,
 	                           uint64_t initial_object,
 	                           std::vector<std::pair<std::string, std::string>> &solutions,
 	                           bool const_to_var,
-	                           timer::time_point start,
 	                           uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
-		timer::time_point stop;
-		double total_time = 0.0;
-		duration<double> time_span;
-
 		word_t current_D;  // palabra de maquina D, con los estados activos
 		initializable_array<word_t> D_array(4 * (max_O + 1), 0);
 
@@ -1119,26 +1110,19 @@ private:
 		};
 
 		// Search the graph in a BFS/DFS-like fashion: (depending on class template argument)
-		while (!ist_container.empty()) 
+		while (!check_timeout() && !ist_container.empty()) 
 		{
 			auto ist_top = first_element(ist_container);
 			ist_container.pop();
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
 			
-			if (solutions.size() >= bound) return false;
-			stop = timer::now();
-			time_span = duration_cast<milliseconds>(stop - start);
-			total_time = time_span.count();
-			if (total_time > TIME_OUT) return true;
+			if (solutions.size() >= bound) break;
 		}
-		return false;
 	};
 
 
 	// Returns true iff a path accepted by A exists between s and o.
-	bool _rpq_const_to_const(RpqAutomataAttr &A,
-	                         uint64_t s, uint64_t o,
-	                         high_resolution_clock::time_point start)
+	bool _rpq_const_to_const(RpqAutomataAttr &A, uint64_t s, uint64_t o)
 	{
 		// in the case of const-to-const queries, 
 		// there result is simply that there either is a path or not
@@ -1162,13 +1146,10 @@ private:
 
 		// Search the graph in a BFS/DFS-like fashion:
 
-		high_resolution_clock::time_point stop;
-		double total_time = 0.0;
-		bool time_out = false;
 		Container ist_container; //contains intervals with NFA states
 		auto start_interval = bwt_interval(L_P.get_C(o), L_P.get_C(o + 1) - 1);
 		ist_container.push(interval_state_type{start_interval, current_D});
-		while (!time_out && !ist_container.empty()) 
+		while (!check_timeout() && !ist_container.empty()) 
 		{
 			// pop queue/stack (depends on class template argument)
 			auto ist_top = first_element(ist_container);
@@ -1177,10 +1158,6 @@ private:
 			next_step(A, D_array, ist_top.current_D, ist_top.interval, ist_container, outputter);
 			// quit if found result
 			if (path_exists) return true;
-			// check for timeout
-			stop = high_resolution_clock::now();
-			total_time = duration_cast<milliseconds>(stop - start).count();
-			if (total_time > TIME_OUT) time_out = true;
 		}
 		return false;
 	};
@@ -1199,8 +1176,6 @@ private:
 		// remove attribute constraints and create acceptors from them
 		vector<vector<pair<AttrInfo, Acceptor>>> attr_acceptors;
 		std::string rpq = parse_attribute_conditions(input_rpq, attr_acceptors, attributes_map);
-
-		auto start_time = timer::now();
 
 		// First, for each predicate in the query, find the predicate id and interval in I_S:
 		std::vector<int64_t> pred_v;
@@ -1230,18 +1205,13 @@ private:
 		// Evaluate each predicate like a single predicate query, 
 		// starting with the ones that return most results:
 
-		// initialize clock
-		auto stop = timer::now();
-		auto total_time = duration_cast<milliseconds>(stop - start_time).count();
-		bool time_out = (total_time > TIME_OUT);
-
 		// set to keep track of duplicate results
 		std::unordered_set<std::pair<uint64_t, uint64_t>> result_set;
 		std::pair<std::unordered_set<std::pair<uint64_t, uint64_t>>::iterator, bool> insert_info;
 
 		uint64_t pred, negated_pred, a, max_pos, c, object;
 		std::pair<uint64_t, uint64_t> I_S;
-		for (uint64_t k = 0; !time_out && k < n_or; k++) 
+		for (uint64_t k = 0; !check_timeout() && k < n_or; k++) 
 		{
 			// find predicate that has most objects
 			for (a = 0; a < n_or and pred_v[a] == -1; ++a);
@@ -1260,14 +1230,14 @@ private:
 			pred_v[max_pos] = -1;
 		
 
-			for (uint64_t i = interval_left; !time_out && i <= interval_right; i++) 
+			for (uint64_t i = interval_left; !check_timeout() && i <= interval_right; i++) 
 			{
 				object = L_S[i];
 				I_S = L_P.backward_step(L_P.get_C(object), L_P.get_C(object + 1) - 1, pred);
 				c = C_S[pred];
 				I_S.first += c;
 				I_S.second += c;
-				for (uint64_t j = I_S.first; !time_out && j <= I_S.second; j++)
+				for (uint64_t j = I_S.first; !check_timeout() && j <= I_S.second; j++)
 				{
 					if (!has_matching_attributes(j, max_pos, attr_acceptors)) continue;
 					
@@ -1283,9 +1253,6 @@ private:
 						output.emplace_back(name1, name2);
 						if (output.size() >= bound) return;
 					}
-					stop = timer::now();
-					total_time = duration_cast<milliseconds>(stop - start_time).count();
-					time_out = (total_time > TIME_OUT);
 				}
 			}
 
@@ -1299,12 +1266,6 @@ private:
 	                            std::vector<std::pair<std::string, std::string>>& output,
 	                            uint64_t bound = std::numeric_limits<uint64_t>::max())
 	{
-		// initialize clock, to check for timeout
-		auto start = timer::now();
-		auto stop = start;
-		int total_time = 0;
-		bool time_out = false;
-
 		// find the actual predicate id:
 		// p is the id of the predicate as found in the query,
 		// p_rev is the reverse of that.
@@ -1335,7 +1296,7 @@ private:
 
 			// for each subject, add it to output if attributes match
 			uint64_t subj = 0;
-			for (uint64_t i = I_S.first; !time_out && i <= I_S.second; i++)
+			for (uint64_t i = I_S.first; !check_timeout() && i <= I_S.second; i++)
 			{
 				// check attributes
 				if (!has_matching_attributes(i, 0, attr_acceptors)) continue;
@@ -1351,11 +1312,6 @@ private:
 					result_set.insert(subj);
 					if (output.size() >= bound) return;
 				}
-
-				// check for timeout
-				stop = timer::now();
-				total_time = duration_cast<milliseconds>(stop - start).count();
-				time_out = (total_time > TIME_OUT);
 			}
 		}
 		else if (s != 0 and o == 0) // const to var
@@ -1367,7 +1323,7 @@ private:
 			I_S.second += c;
 
 			uint64_t obj = 0;
-			for (uint64_t i = I_S.first; !time_out && i <= I_S.second; i++)
+			for (uint64_t i = I_S.first; !check_timeout() && i <= I_S.second; i++)
 			{
 				if (!has_matching_attributes(i, 0, attr_acceptors)) continue;
 
@@ -1381,17 +1337,13 @@ private:
 					result_set.insert(obj);
 					if (output.size() >= bound) return;
 				}
-
-				stop = timer::now();
-				total_time = duration_cast<milliseconds>(stop - start).count();
-				time_out = (total_time > TIME_OUT);
 			}
 		}
 		else if (s == 0 and o == 0) // var to var
 		{
 			// go through all p-labeled edges to find useful objects
 			uint64_t obj = 0;
-			for (uint64_t i = C_S[p_rev]; i < C_S[p_rev+1]; i++)
+			for (uint64_t i = C_S[p_rev]; !check_timeout() && i < C_S[p_rev+1]; i++)
 			{
 				obj = L_S[i];
 				auto iter = result_set.find(obj);
@@ -1402,10 +1354,6 @@ private:
 					if (output.size() >= bound) return;
 					result_set.insert(obj);
 				}
-				
-				stop = timer::now();
-				total_time = duration_cast<milliseconds>(stop - start).count();
-				time_out = (total_time > TIME_OUT);
 			}
 		}
 		else if (s != 0 and o != 0) // const to const
@@ -1416,7 +1364,7 @@ private:
 			I_S.first += c;
 			I_S.second += c;
 
-			for (uint64_t i = I_S.first; !time_out && i <= I_S.second; i++)
+			for (uint64_t i = I_S.first; !check_timeout() && i <= I_S.second; i++)
 			{
 				if (!has_matching_attributes(i, 0, attr_acceptors)) continue;
 
@@ -1427,11 +1375,6 @@ private:
 					output.emplace_back(name1, name2);
 					return;
 				}
-
-				// check for timeout
-				stop = timer::now();
-				total_time = duration_cast<milliseconds>(stop - start).count();
-				time_out = (total_time > TIME_OUT);
 			}
 		}
 	}
@@ -1458,8 +1401,7 @@ private:
 		mark(A);
 
 		// run the query
-		timer::time_point start = timer::now();
-		_rpq_const_s_to_var_o(A, initial_object, output, true, start, bound);
+		_rpq_const_s_to_var_o(A, initial_object, output, true, bound);
 
 		// clean markings
 		unmark(A);
@@ -1482,8 +1424,7 @@ private:
 
 		// run the query
 		mark(A);
-		timer::time_point start = timer::now();
-		_rpq_const_s_to_var_o(A, initial_object, output, false, start, bound);
+		_rpq_const_s_to_var_o(A, initial_object, output, false, bound);
 		unmark(A);
 	};
 
@@ -1506,8 +1447,7 @@ private:
 		mark(A);
 
 		// run the query
-		high_resolution_clock::time_point start = high_resolution_clock::now();
-		if (_rpq_const_to_const(A, s, o, start))
+		if (_rpq_const_to_const(A, s, o))
 		{
 			std::string name1 = SO_id_to_name.at(s);
 			std::string name2 = SO_id_to_name.at(o);
@@ -1538,8 +1478,7 @@ private:
 		// find nodes from which there is a path
 		std::vector<uint64_t> subjects;
 		mark(A);
-		timer::time_point start = timer::now();
-		bool all = rpq_var_to_var_obtain_o(A, subjects, start, bound);
+		bool all = rpq_var_to_var_obtain_o(A, subjects, bound);
 		unmark(A);
 
 		// then in the opposite direction
@@ -1549,17 +1488,16 @@ private:
 		RpqAutomataAttr A2(query2, predicates_map, attributes_map);
 
 		mark(A2);
-		bool time_out = false;
 		if (all) // there are results to the query from all nodes
 		{
 			uint64_t sigma = (max_O > max_S) ? max_O : max_S; // largest node id
-			for (uint64_t i = 1; !time_out && i <= sigma && output.size() < bound; i++)
-				time_out = _rpq_const_s_to_var_o(A2, i, output, true, start, bound);
+			for (uint64_t i = 1; !check_timeout() && i <= sigma && output.size() < bound; i++)
+				_rpq_const_s_to_var_o(A2, i, output, true, bound);
 		}
 		else // there are results only from the obtained subjects
 		{	   
-			for (uint64_t i = 0; !time_out && i < subjects.size() && output.size() < bound; i++)
-				time_out = _rpq_const_s_to_var_o(A2, subjects[i], output, true, start, bound);
+			for (uint64_t i = 0; !check_timeout() && i < subjects.size() && output.size() < bound; i++)
+				_rpq_const_s_to_var_o(A2, subjects[i], output, true, bound);
 		}
 		unmark(A2);
 	};
@@ -1582,8 +1520,7 @@ private:
 		mark(A2);
 		// find nodes to which there is a path
 		std::vector<uint64_t> objects;
-		timer::time_point start = timer::now();
-		bool all = rpq_var_to_var_obtain_o(A2, objects, start, bound);
+		bool all = rpq_var_to_var_obtain_o(A2, objects, bound);
 		// clean markings
 		unmark(A2);
 
@@ -1594,17 +1531,16 @@ private:
 		RpqAutomataAttr A(query, predicates_map, attributes_map); 
 
 		mark(A);
-		bool time_out = false;
 		if (all) // there are results to the query from all nodes
 		{
 			uint64_t sigma = (max_O > max_S) ? max_O : max_S; // largest node id
-			for (uint64_t i = 1; !time_out && i <= sigma && output.size() < bound; i++)
-				time_out = _rpq_const_s_to_var_o(A, i, output, false, start, bound);
+			for (uint64_t i = 1; !check_timeout() && i <= sigma && output.size() < bound; i++)
+				_rpq_const_s_to_var_o(A, i, output, false, bound);
 		}
 		else // there are results only from the obtained objects
 		{
-			for (uint64_t i = 0; !time_out && i < objects.size() && output.size() < bound; i++)
-				time_out = _rpq_const_s_to_var_o(A, objects[i], output, false, start, bound);
+			for (uint64_t i = 0; !check_timeout() && i < objects.size() && output.size() < bound; i++)
+				_rpq_const_s_to_var_o(A, objects[i], output, false, bound);
 		}
 		unmark(A);
 	};
@@ -1650,7 +1586,7 @@ private:
 		{
 			// determine the direction to search (subjects first or objects first)
 			if (query_type == "") // single wildcard predicate
-				rpq_var_to_var_so(query, pred_map, attr_map, output, bound); 
+				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type == "+" or query_type == "*")
 				rpq_var_to_var_so(query, pred_map, attr_map, output, bound);
 			else if (query_type[query_type.size() - 1] == '*' and query_type[0] != '*')
@@ -1723,8 +1659,7 @@ private:
 		// find startpoints of paths that match the rpq,
 		// setting their value of q_attr to 1
 		// (unless all nodes would trivially match)
-		timer::time_point start = timer::now();
-		bool is_trivial = rpq_subquery_obtain_o(q_attr, A, start);
+		bool is_trivial = rpq_subquery_obtain_o(q_attr, A);
 
 		// clean markings
 		unmark(A);
