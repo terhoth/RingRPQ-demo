@@ -47,29 +47,9 @@ int main(int argc, char **argv)
 	     << (float) graph.size() / (graph.n_triples() / 2) << " bytes per triple " 
 	     << load_time << " ms" << endl;
 
-	// Map names to ids
-	unordered_map<string, uint64_t> map_SO;
-	unordered_map<uint64_t, string> map_SO_to_name;
-	unordered_map<uint64_t, string> map_P_to_name;
-	uint64_t id;
-	string name;
-	while (ifs_SO >> id >> name)
-	{
-		map_SO[name] = id;
-		map_SO_to_name[id] = name;
-		ifs_SO.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-	while (ifs_P >> id >> name)
-	{
-		map_P_to_name[id] = name;
-		ifs_P.ignore(numeric_limits<streamsize>::max(), '\n');
-	}
-
-
-
 	// find the paths
-	vector<vector<uint64_t>> paths;
-	graph.find_paths(map_SO.at(start_name), path_length, paths, !backward, backward);
+	vector<vector<string>> paths;
+	graph.find_paths(start_name, path_length, paths, !backward, backward);
 	
 	// (lambda to remove angle brackets from node/predicate names)
 	auto trim = [](string str) 
@@ -79,16 +59,14 @@ int main(int argc, char **argv)
 	cout << "Found " << paths.size() << " paths:" << endl;
 	for (auto path : paths)
 	{
-		uint64_t s = path.back();
+		string end_name = path.back();
 		path.pop_back();
-		string end_name = map_SO_to_name.at(s);
 
 		cout << trim(start_name);
 		if (backward) cout << "  <--"; else cout << "  --";
-		for (uint64_t p : path)
+		for (string p : path)
 		{
-			name = map_P_to_name.at(p);
-			cout << trim(name) << "-";
+			cout << trim(p) << "-";
 		}
 		if (backward) cout << "-  "; else cout << "->  ";
 		cout << trim(end_name) << endl;

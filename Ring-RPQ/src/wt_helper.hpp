@@ -46,7 +46,7 @@ namespace sdsl {
     {
         using std::get;
         using size_type      = typename t_wt::size_type;
-        using value_type     = typename t_wt::value_type;
+        //using value_type     = typename t_wt::value_type;
         using node_type      = typename t_wt::node_type;
         using pnvr_type      = std::pair<node_type, range_vec_type>;
         typedef std::stack<pnvr_type> stack_type;

@@ -46,7 +46,7 @@ public class HelloController {
 			parser.addErrorListener(errorlistener);
 
 			// parse
-			XPathRpqListener listener = new XPathRpqListener();
+			XPathRpqListenerImpl listener = new XPathRpqListenerImpl();
 			parser.addParseListener(listener);
             ParseTree tree = parser.main();    // begin parsing at rule main
 

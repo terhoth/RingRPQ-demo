@@ -33,6 +33,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../Config.hpp"
 
 
+// Modified by Terho Thorel in August 2026 to be compatible with attributes.
 
 typedef struct {
     uint64_t p;
@@ -61,26 +62,60 @@ void BFS_node(const uint64_t p, const uint64_t s,
     }
 }
 
-bool sortby_triple(const spo_triple &a, const spo_triple &b)
+using spo_triple_with_attrs = std::pair<spo_triple, std::string>;
+unsigned int& get_s(spo_triple_with_attrs &d)
 {
-    if(get<0>(a) == get<0>(b)){
-        if(get<1>(a) == get<1>(b)){
-            return get<2>(a) < get<2>(b);
-        }
-        return get<1>(a) < get<1>(b);
-    }
-    return get<0>(a) < get<0>(b);
+	return get<0>(d.first);
+}
+unsigned int& get_p(spo_triple_with_attrs &d)
+{
+	return get<1>(d.first);
+}
+unsigned int& get_o(spo_triple_with_attrs &d)
+{
+	return get<2>(d.first);
+}
+std::string& get_attrs(spo_triple_with_attrs &d)
+{
+	return d.second;
+}
+const unsigned int& get_s(const spo_triple_with_attrs &d)
+{
+	return get<0>(d.first);
+}
+const unsigned int& get_p(const spo_triple_with_attrs &d)
+{
+	return get<1>(d.first);
+}
+const unsigned int& get_o(const spo_triple_with_attrs &d)
+{
+	return get<2>(d.first);
+}
+const std::string& get_attrs(const spo_triple_with_attrs &d)
+{
+	return d.second;
 }
 
-bool sortby_pos(const spo_triple &a, const spo_triple &b)
+bool sortby_triple(const spo_triple_with_attrs &a, const spo_triple_with_attrs &b)
 {
-    if(get<1>(a) == get<1>(b)){
-        if(get<2>(a) == get<2>(b)){
-            return get<0>(a) < get<0>(b);
+    if(get_s(a) == get_s(b)){
+        if(get_p(a) == get_p(b)){
+            return get_o(a) < get_o(b);
         }
-        return get<2>(a) < get<2>(b);
+        return get_p(a) < get_p(b);
     }
-    return get<1>(a) < get<1>(b);
+    return get_s(a) < get_s(b);
+}
+
+bool sortby_pos(const spo_triple_with_attrs &a, const spo_triple_with_attrs &b)
+{
+    if(get_p(a) == get_p(b)){
+        if(get_o(a) == get_o(b)){
+            return get_s(a) < get_s(b);
+        }
+        return get_o(a) < get_o(b);
+    }
+    return get_p(a) < get_p(b);
 }
 
 
@@ -93,21 +128,46 @@ bool sortby_interval(const pair<uint64_t, uint64_t> &a,
 int main(int argc, char **argv)
 {
 
+	if (argc < 2)
+	{
+		std::cout << "Usage: " << argv[0] << " <path-to-dat-file>" << std::endl;
+		std::cout << "       (assumes that the .SO suffixed node file exists)" << std::endl;
+		return EXIT_FAILURE;
+	}
+
     std::string data_file = argv[1];
-    std::string so_file = argv[2];
+    std::string so_file = data_file + ".SO";
 
     std::string out_data = data_file + ".sort-pos-bfs";
     std::string out_so   = so_file + ".sort-pos-bfs";
 
+    std::ifstream data_ifs(data_file);
+    std::ifstream so_ifs(so_file);
+	if (!data_ifs.is_open())
+	{
+		std::cout << "Failed to open " << data_file << std::endl;
+		return EXIT_FAILURE;
+	}
+	if (!so_ifs.is_open())
+	{
+		std::cout << "Failed to open " << so_file << std::endl;
+		return EXIT_FAILURE;
+	}
 
     std::cout << "Reading file... " << std::flush;
-    vector<spo_triple> D;
-    std::ifstream data_ifs(data_file);
-    uint64_t s, p , o;
-    do {
-        data_ifs >> s >> p >> o;
-        D.emplace_back(spo_triple(s, p, o));
-    } while (!data_ifs.eof());
+    vector<spo_triple_with_attrs> D;
+	if (!data_ifs.is_open())
+	{
+		std::cout << "Failed to open " << data_file << std::endl;
+		return EXIT_FAILURE;
+	}
+    uint64_t s, p, o;
+	std::string attr_values;
+    while (data_ifs >> s >> p >> o) 
+	{
+		std::getline(data_ifs, attr_values);
+        D.emplace_back(spo_triple(s, p, o), attr_values);
+	}
     data_ifs.close();
     //std::sort(D.begin(), D.end(), sortby_pos);
 
@@ -121,9 +181,9 @@ int main(int argc, char **argv)
     uint64_t s1, lb, line, max_so;
     line = s1 = lb = max_so = 0;
     while(line < D.size()){
-        s = get<0>(D[line]);
-        p = get<1>(D[line]);
-        o = get<2>(D[line]);
+        s = get_s(D[line]);
+        p = get_p(D[line]);
+        o = get_o(D[line]);
         if(s > max_so) max_so = s;
         if(o > max_so) max_so = o;
         if(s != s1){
@@ -165,7 +225,7 @@ int main(int argc, char **argv)
         }
 
         if(nodes.empty()){
-            std::cout << "Visited: " << n_visited << " total: " << max_so << std::endl;
+            //std::cout << "Visited: " << n_visited << " total: " << max_so << std::endl;
             while(lb < vec_s.size() && visited[vec_s[lb]]){
                 ++lb;
             }
@@ -204,10 +264,8 @@ int main(int argc, char **argv)
 
     std::cout << "Updating triples... " << std::flush;
     for(auto& d : D){
-        s = hash_table[get<0>(d)];
-        o = hash_table[get<2>(d)];
-        get<0>(d) = s;
-        get<2>(d) = o;
+        get_s(d) = hash_table[get_s(d)];
+        get_o(d) = hash_table[get_o(d)];
     }
     std::cout << "[done]" << std::endl;
     std::cout << "Sorting triples... " << std::flush;
@@ -218,7 +276,7 @@ int main(int argc, char **argv)
     std::cout << "Writing triples... " << std::flush;
     std::ofstream data_ofs(out_data);
     for(auto& d : D){
-        data_ofs << get<0>(d) << " " << get<1>(d) << " " << get<2>(d) << std::endl;
+        data_ofs << get_s(d) << " " << get_p(d) << " " << get_o(d) << get_attrs(d) << std::endl;
     }
     data_ofs.close();
 
@@ -227,7 +285,6 @@ int main(int argc, char **argv)
     std::cout << "[done]" << std::endl;
 
     std::cout << "Writing dictionary... " << std::flush;
-    std::ifstream so_ifs(so_file);
     std::ofstream so_ofs(out_so);
     uint64_t id;
     std::string url, data;

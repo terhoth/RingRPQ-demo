@@ -266,12 +266,6 @@ string RpqAutomataAttr::parse_attribute_conditions(const string& p_string, uint6
         }
     }
     
-    if (predicates_map.find(p_without_attrs) == predicates_map.end()) 
-    { 
-        throw std::invalid_argument("unknown predicate: " + p_without_attrs); 
-    }
-    uint64_t p_id = predicates_map.at(p_without_attrs);
-
 
     // Then, create a lambda acceptor for each condition:
     
@@ -280,7 +274,7 @@ string RpqAutomataAttr::parse_attribute_conditions(const string& p_string, uint6
     // add trivial condition if none explicitly given
     if (attr_conditions.size() == 0)
     {
-        _AttrAcceptors.back().emplace_back(automaton_states, AttrInfo{-1, AttrInfo::Edge, AttrInfo::None}, Acceptor());
+        _AttrAcceptors.back().emplace_back(automaton_states, AttrInfo{0, AttrInfo::Edge, AttrInfo::None}, Acceptor());
     }
 
     for (string attr_cond : attr_conditions)
