@@ -1,3 +1,11 @@
+/*
+ * File: XPathErrorListener.java
+ * Author: Terho Thorel
+ * Description: ANTLR4 error listener for XPath parsing, 
+ *  collects error messages in a list instead of printing them.
+ * 
+ */
+
 package com.example.demo;
 
 import java.util.ArrayList;
