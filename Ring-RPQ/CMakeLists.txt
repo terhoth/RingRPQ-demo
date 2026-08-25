@@ -73,3 +73,15 @@ target_link_libraries(queries-prepare sdsl divsufsort divsufsort64 nfa)
 
 add_executable(yago-prepare src/utilities/yago-prepare.cpp)
 target_link_libraries(yago-prepare sdsl divsufsort divsufsort64)
+# libpqxx 7.10 itself needs -std=c++17, but ring_rpq_attr.hpp doesn't compile
+# under C++17 (the SDSL fork's wm_int.hpp -> init_array.hpp uses `register`,
+# a hard error under strict C++17, though only a deprecation warning under
+# this project's normal C++11). So worker.cpp (includes ring_rpq_attr.hpp)
+# and worker_db.cpp (includes <pqxx/pqxx>) are separate translation units:
+# worker_db.cpp alone gets the -std=c++17 override, worker.cpp builds under
+# the project's default flags like every other target.
+find_package(libpqxx REQUIRED CONFIG PATHS "$ENV{HOME}/.local/libpqxx7" NO_DEFAULT_PATH)
+
+add_executable(ring-rpq-worker src/worker.cpp src/worker_db.cpp)
+set_source_files_properties(src/worker_db.cpp PROPERTIES COMPILE_OPTIONS "-std=c++17")
+target_link_libraries(ring-rpq-worker sdsl divsufsort divsufsort64 nfa libpqxx::pqxx)
