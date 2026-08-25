@@ -40,7 +40,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <limits>
 #include <string>
 #include <thread>
 #include <vector>
@@ -191,14 +190,13 @@ void process_row(DbHandle& db, ring_rpq_attr_bfs& graph, const ClaimedRow& row) 
         return;
     }
 
-    // evaluate()'s timeout is milliseconds and only affects whether it
-    // *reports* Error::TimedOut — the actual search loops self-limit to a
-    // fixed ~600ms per phase (TIME_OUT in query_config.hpp) regardless of
-    // what's passed here, so this can't make a query run away. No timeout
-    // (time_out_limit == 0) means "don't report a timeout for our own
-    // budget" — pass the largest representable value.
+    // evaluate()'s timeout (milliseconds) is now actually enforced by every
+    // internal search loop (see check_timeout() in ring_rpq_attr.hpp), so
+    // there's no engine-side self-limit left to fall back on. A row with no
+    // user-specified deadline still needs a hard cap here, or a pathological
+    // query can run the worker indefinitely — use the engine's own default.
     unsigned int timeout_ms = row.has_timeout ? static_cast<unsigned int>(row.remaining_seconds * 1000.0)
-                                               : std::numeric_limits<unsigned int>::max();
+                                               : TIME_OUT;
 
     std::vector<std::pair<std::string, std::string>> output;
     Error error = graph.evaluate(row.translated_query, output, static_cast<uint64_t>(effective_max), timeout_ms);
