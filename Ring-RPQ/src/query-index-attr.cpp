@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 	// Load the index
 	auto load_start = timer::now();
 	ring_rpq_attr_bfs graph;
-	graph.load(argv[1]);
+	graph.load(argv[1], true);
 	auto load_end = timer::now();
 	int load_time = duration_cast<milliseconds>(load_end - load_start).count();
 	cout << "  Index loaded " 
