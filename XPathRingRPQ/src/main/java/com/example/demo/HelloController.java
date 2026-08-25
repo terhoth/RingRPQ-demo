@@ -1,3 +1,11 @@
+/*
+ * File: HelloController.java
+ * Author: modified by Terho Thorel
+ * 	For the original code, see Github repository SSSVensk/XPathCypher
+ * Description: Translation from XPath to syntax used by terhoth/Ring-RPQ-Attr.
+ *  Parses the input with ANTLR4 and uses a listener to create the output. 
+ */
+
 package com.example.demo;
 
 import java.util.*;

@@ -1,6 +1,16 @@
 grammar xpathRpq;
 
 /*
+Xpath grammar extended with new axes for graph navigation,
+in particular V/reverse::E/V and V/transitive::E/V.
+Note that the usage of axes here is not strictly speaking
+in line with the semantics of regular XPath syntax.
+
+Modified from xpath.g4 by Terho Thorel.
+(The notices below are retained from xpath.g4)
+*/
+
+/*
 XPath 1.0 grammar. Should conform to the official spec at
 http://www.w3.org/TR/1999/REC-xpath-19991116. The grammar
 rules have been kept as close as possible to those in the

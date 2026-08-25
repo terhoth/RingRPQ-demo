@@ -1,3 +1,12 @@
+/*
+ * File: XPathRpqListener.java
+ * Author: Terho Thorel, based on XPathCypherListener.java by SSSvensk
+ * 	For the original code, see Github repository SSSVensk/XPathCypher
+ * Description: ANTLR4 listener that constructs the RingRPQ query during parse.
+ *  Also does some syntax and semantics checks, collecting a list of warning messages.
+ * 
+ */
+
 package com.example.demo;
 
 import java.util.ArrayList;
@@ -22,8 +31,11 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	private boolean firstStep = true;
 	private boolean deletedStep = false;
 
+	private boolean firstStepWithPredicate = false;
+	private boolean stepContainsPredicate = false;
+
 	private boolean insideAttributeTest = false;
-	private Object attributeValue;
+	private String attributeValue;
 
 	private final boolean verbose = false;
 
@@ -57,6 +69,9 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	@Override
 	public void enterMain(xpathRpqParser.MainContext ctx) {
 		this.queryStack.push(query);	
+		this.axis.push("");
+		this.startEdge.push("");
+		this.endEdge.push("");
 	}
 
 	@Override
@@ -90,7 +105,6 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	public void exitEqualityExpr(xpathRpqParser.EqualityExprContext ctx) {
 		if (ctx.getChildCount() > 1) {
 			if (this.verbose) System.out.println("exitEqualityExpr");
-			this.warnIf(!this.insideAttributeTest, "Equality expressions may only be used to test attributes");
 			this.warnIf(this.attributeValue == null,
 			            "Equality expressions must consist of attribute name, operand and value");
 			this.queryStack.peek().append(" " + ctx.getChild(1) + " "); // operator
@@ -139,10 +153,6 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 		this.warnIf(ctx.getChildCount() > 1, "Multiplication has not been implemented");
 	}
 
-	//@Override
-	//public void exitUnionExprNoRoot(xpathRpqParser.UnionExprNoRootContext ctx) {
-	//	this.warnIf(ctx.getChildCount() > 1, "Union has not been implemented");
-	//}
 	@Override
 	public void enterPathExprNoRoot(xpathRpqParser.PathExprNoRootContext ctx) {
 		this.warnIf(ctx.parent.parent.getChildCount() > 1, "Union has not been implemented");
@@ -153,9 +163,17 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 		if (this.verbose) System.out.println("exitPrimaryExpr");
 		//Checking if the child node is leaf node
 		if (ctx.getChild(0).getChild(0) == null) {
-			this.attributeValue = ctx.getChild(0);
+			String value = ctx.getChild(0).toString();
+			this.warnIf(value.charAt(0) == '(', "Parenthezised expressions are not allowed");
+			this.warnIf(value.charAt(0) != '(' && !this.insideAttributeTest, 
+			            "Literals may be used only in attribute tests");
+			if (value.matches("'.*'") || value.matches("\".*\"")) {
+				this.attributeValue = value.substring(1, value.length()-1);
+			} else {
+				this.attributeValue = value;
+			}
 		} else {
-			this.warnIf(true, "Functions, variables and parenthesized expressions are unimplemented");
+			this.warnIf(true, "Functions and variables are unimplemented");
 		}	
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
@@ -172,16 +190,23 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 			// this is the end of the main query
 			int n_of_steps = (ctx.getChildCount() + 1) / 2;
 			this.warnIf(n_of_steps <= 1, "The query must contain at least one edge!");
-			if (n_of_steps % 2 == 0 || this.deletedStep) {
-				// no vertex endpoint specified
+			this.warnIf(n_of_steps % 2 == 0, "The query must begin and end with a vertex");
+			if (this.deletedStep || this.stepContainsPredicate) {
+				// Either the end vertex is a wildcard, or
+				// the last vertex contains a predicate, 
+				// in which case a new variable end vertex needs to be added
+				// because Ring-RPQ doesn't allow attributes on endpoints.
 				this.queryStack.peek().append(" ?y");
 			} else {
 				// put a space before the last vertex, and remove &
 				int i = this.queryStack.peek().lastIndexOf("/<&");
-				this.queryStack.peek().delete(i, i+3);
-				this.queryStack.peek().insert(i, " <");
+				if (i != -1) {
+					this.queryStack.peek().delete(i, i+3);
+					this.queryStack.peek().insert(i, " <");
+				}
 			}
 		}
+		this.firstStep = false;
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
@@ -220,12 +245,14 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 			this.endEdge.push("");
 			this.axis.push("attribute");
 			this.insideAttributeTest = true;
-		} else if (sb.toString() == null || !sb.toString().isEmpty()) {
+		} else {
+			this.warnIf(sb.toString().equals("namespace"), "Namespaces have not been implemented");
+			this.warnIf(sb.toString().equals("following") || sb.toString().equals("following-sibling") ||
+			            sb.toString().equals("preceding") || sb.toString().equals("preceding-sibling"), 
+			            "Following/preceding axes have no interpretation in graphs");
 			this.startEdge.push("<");
 			this.endEdge.push(">");
 			this.axis.push("child");
-		} else {
-			throw new IllegalArgumentException("Unknown axis " + sb.toString());
 		}
 
 		this.queryStack.peek().append(this.startEdge.peek());
@@ -246,6 +273,7 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 			this.queryStack.peek().append("/");
 			if (this.verbose) System.out.println(this.queryStack.peek());
 		}
+		if (this.queryStack.size() == 1) this.stepContainsPredicate = false;
 		this.deletedStep = false;
 	}
 
@@ -254,10 +282,8 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 		if (this.verbose) System.out.println("exitStep");
 		this.queryStack.peek().append(this.endEdge.peek());
 	
-		if (firstStep && this.queryStack.size() == 1) {
+		if (this.firstStep && this.queryStack.size() == 1) {
 			// this is the very first vertex of the main query
-			this.warnIf(this.axis.peek() != "child", 
-			            "The first step should contain only a vertex name (or wildcard vertex)");
 			if (this.queryStack.peek().toString().equals("<&>")) {
 				// replace unspecified start vertex with variable
 				this.queryStack.pop();
@@ -296,9 +322,7 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 
 	@Override
 	public void enterNameTest(xpathRpqParser.NameTestContext ctx) {
-		if (this.verbose) System.out.println("enterNameTest");
 		this.nCName = "";
-		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
@@ -322,21 +346,24 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 
 	@Override
 	public void exitNCName(xpathRpqParser.NCNameContext ctx) {
-		if (this.verbose) System.out.println("exitNCName");
 		StringBuilder sb = new StringBuilder();
 		this.nCName = sb.append(ctx.getChild(0)).toString();	
-		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
 	public void enterPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("enterPredicate");
-		this.warnIf(this.firstStep && this.queryStack.size() == 1,
-		            "The first step should contain only a vertex name (or wildcard vertex)");
+		if (this.firstStep && this.queryStack.size() == 1) {
+			// As Ring-RPQ can't have predicates in path endpoints, 
+			// add variable vertex ?x to the beginning
+			StringBuilder tmpStep = this.queryStack.pop();
+			this.queryStack.push(new StringBuilder("?x ").append(tmpStep));
+		}
 		int n_of_steps = (ctx.parent.parent.getChildCount() + 1) / 2;
 		this.warnIf(this.insideAttributeTest, "Attribute tests may not contain predicates");
-		this.firstStep = true;
-		this.insideAttributeTest = false;
+		this.firstStep = true; // first inside this predicate
+		this.stepContainsPredicate = true; // the main query's step contains this predicate
+		this.insideAttributeTest = false; // until proven otherwise
 		this.queryStack.push(new StringBuilder());
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
@@ -345,6 +372,7 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	public void exitPredicate(xpathRpqParser.PredicateContext ctx) {
 		if (this.verbose) System.out.println("exitPredicate");
 		StringBuilder predicate = this.queryStack.pop();
+		this.firstStep = false;
 		this.warnIf(this.queryStack.isEmpty(), "The entire query seems to be inside a predicate??");
 		if (this.insideAttributeTest) {
 			this.insideAttributeTest = false;
