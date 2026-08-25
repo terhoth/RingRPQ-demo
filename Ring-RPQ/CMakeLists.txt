@@ -71,5 +71,5 @@ target_link_libraries(sort-dict-bfs sdsl divsufsort divsufsort64 nfa)
 add_executable(queries-prepare src/utilities/queries-prepare.cpp)
 target_link_libraries(queries-prepare sdsl divsufsort divsufsort64 nfa)
 
-add_executable(yago2s-prepare src/utilities/yago2s-prepare.cpp)
-target_link_libraries(yago2s-prepare sdsl divsufsort divsufsort64)
+add_executable(yago-prepare src/utilities/yago-prepare.cpp)
+target_link_libraries(yago-prepare sdsl divsufsort divsufsort64)

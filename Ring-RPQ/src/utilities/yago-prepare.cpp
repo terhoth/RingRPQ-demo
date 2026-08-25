@@ -31,6 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Created by Adrián on 13/6/22.
 //
 
+// Updated by Terho Thorel in August 2026 to work with newer YAGO version 4.6
+
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -41,6 +43,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 inline bool valid_line(std::string &line){
     return !line.empty() && line[0] != '@' && line[0] != '#';
 }
+inline bool is_prefix_definition(std::string &line){
+    return !line.empty() && line[0] == '@';
+}
+
 
 inline void fix_data(std::string &d){
     if(d[0] != '<'){
@@ -134,7 +140,7 @@ std::string base(const std::string &uri, const std::string &uri_base){
 
 
 std::string transform(const std::string &uri,
-                      const std::vector<std::pair<std::string, std::string>>& prefixes,
+                      const std::unordered_map<std::string, std::string>& prefixes,
                       const std::string &uri_base){
 
     if(is_uri(uri)) {
@@ -151,6 +157,7 @@ std::string transform(const std::string &uri,
         for(const auto &p : prefixes){
             auto fix = fix_prefix(uri, p.first, p.second);
             if(fix.first){
+				//std::cout << "fix prefix: " << uri << " --> " << fix.second << std::endl;
                 return fix.second;
             }
         }
@@ -160,19 +167,25 @@ std::string transform(const std::string &uri,
 
 int main(int argc, char **argv){
 
-    if(argc != 3){
-        std::cout << argv[0] << " <input.ttl> <output>" << std::endl;
+    if(argc < 3)
+	{
+        std::cout << argv[0] << " <input.ttl> <output> <limit>" << std::endl;
         std::cout << "<input.ttl> Turtle file." << std::endl;
         std::cout << "<output> Output file that stores the triples as ids." << std::endl;
-        std::cout << "The executable outputs in the stdout <input.ttl> in nt format." << std::endl;
-
-        return 0;
+        std::cout << "<limit> Optional number of lines to read only part of the input." << std::endl;
+        return EXIT_FAILURE;
     }
+	unsigned int max_lines = 0;
+	if (argc == 4)
+	{
+		max_lines = std::stoi(argv[3]);
+	}
 
     std::string input  = argv[1];
     std::string output = argv[2];
 
     std::string uri_base = "http://yago-knowledge.org/resource/";
+/*
     std::pair<std::string, std::string> rdf = {"rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"};
     std::pair<std::string, std::string> rdfs = {"rdfs:", "http://www.w3.org/2000/01/rdf-schema#"};
     std::pair<std::string, std::string> owl = {"owl:", "http://www.w3.org/2002/07/owl#"};
@@ -180,16 +193,44 @@ int main(int argc, char **argv){
     std::pair<std::string, std::string> skos = {"skos:", "http://www.w3.org/2004/02/skos/core#"};
 
     std::vector<std::pair<std::string, std::string>> prefixes = {rdf, rdfs, owl, xsd, skos};
+*/
+	std::unordered_map<std::string, std::string> prefixes;
 
     std::ifstream in(input);
+	if (!in.is_open())
+	{
+		std::cout << "Failed to open file: " << input << std::endl;
+		return EXIT_FAILURE;
+	}
+	std::cout << "Opened " << input << " succesfully" << std::endl;
+
     std::string line;
     std::unordered_map<std::string, uint64_t> so_map;
     std::unordered_map<std::string, uint64_t> p_map;
     uint64_t so_new_id = 1;
     uint64_t p_new_id = 1;
     std::vector<spo_triple> D;
+	unsigned int n_of_lines = 0;
     while (std::getline(in, line)) {
-        if (valid_line(line)) {
+		++n_of_lines;
+		if (n_of_lines > max_lines and max_lines > 0) break;
+		if (n_of_lines % 1000000 == 0)
+		{
+			std::cout << "..." << std::endl;
+			std::cout << n_of_lines / 1000000 << " million lines processed so far" << std::endl;
+			std::cout << "current line:" << std::endl;
+			std::cout << line << std::endl;
+		}
+
+		if (is_prefix_definition(line)) {
+			std::istringstream iss(line);
+			std::string tmp, prefix_abbr, prefix_uri;
+			iss >> tmp >> prefix_abbr >> prefix_uri;
+			prefix_uri = prefix_uri.substr(1, prefix_uri.length()-2);
+			prefixes[prefix_abbr] = prefix_uri; 
+			//std::cout << "@prefix " << prefix_abbr << " " << prefix_uri << std::endl;
+		}
+        else if (valid_line(line)) {
             std::istringstream iss(line);
             std::string s, p, o, point;
             uint64_t s_id, p_id, o_id;
@@ -197,11 +238,12 @@ int main(int argc, char **argv){
             std::getline( iss, p, '\t' );
             std::getline( iss, o, '\t' );
             std::getline( iss, point, '\t' );
+			if (is_literal(o)) continue;
+			//std::cout << s << " " << p << " " << o << " ?" << std::endl;
             s = transform(s, prefixes, uri_base);
             p = transform(p, prefixes, uri_base);
             o = transform(o, prefixes, uri_base);
-            //iss >> s >> p >> o >> point;
-            std::cout << s << " " << p << " " << o  << " ." << std::endl;
+            //std::cout << s << " " << p << " " << o  << " ." << std::endl;
             auto it_so = so_map.find(s);
             if(it_so != so_map.end()){
                 s_id = it_so->second;
@@ -227,12 +269,17 @@ int main(int argc, char **argv){
         }
     }
     in.close();
+	std::cout << std::endl << "Data read! Now writing..." << std::endl;
     std::sort(D.begin(), D.end(), sortby_triple);
     //Build file
+    std::cout << "Writing triples to " << output << std::endl;
     vector_to_file(output, D);
     //Build files .P and .SO
+    std::cout << "Writing subjects/objects to " << output + ".SO" << std::endl;
     map_to_file(output + ".SO", so_map);
+    std::cout << "Writing predicates to " << output + ".P" << std::endl;
     map_to_file(output + ".P", p_map);
-    return 1;
+	std::cout << "Done!" << std::endl;
 
+    return EXIT_SUCCESS;
 }
