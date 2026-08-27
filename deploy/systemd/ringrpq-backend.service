@@ -10,9 +10,13 @@ PartOf=ringrpq.target
 Type=simple
 User=@USER@
 WorkingDirectory=@REPO@/backend
+# The backend would read ports.conf itself, but baking the value in keeps
+# it consistent with the ringrpq-xpath unit, which holds its own copy: an
+# edit to ports.conf then moves both or neither, never one of the two.
+Environment=RINGRPQ_XPATH_PORT=@XPATH_PORT@
 # The conda env's uvicorn by absolute path — no `conda activate`, which needs
 # an interactive shell that systemd deliberately doesn't give us.
-ExecStart=@UVICORN@ app.main:app --host @BACKEND_HOST@ --port 8000
+ExecStart=@UVICORN@ app.main:app --host @BACKEND_HOST@ --port @BACKEND_PORT@
 Restart=on-failure
 RestartSec=5
 

@@ -4,6 +4,8 @@ import axios from 'axios'
 // origin (see backend/app/main.py's static mount), and .env.production sets
 // VITE_API_BASE_URL to the empty string so these calls stay relative. '||'
 // would treat that empty string as unset and fall back to the dev URL.
+// In dev the variable comes from vite.config.js, which derives it from
+// RINGRPQ_BACKEND_PORT / ports.conf; the literal below is the last resort.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 // backend/app/routers/query.py's QueryRequest requires both as non-nullable ints

@@ -16,7 +16,12 @@
 #                   ($CONDA_PREFIX/../ringrpq-backend/bin/uvicorn, else `command -v`)
 #   JAVA            path to the JVM                (`command -v java`)
 #   BACKEND_HOST    uvicorn bind address           (127.0.0.1)
+#   RINGRPQ_BACKEND_PORT / RINGRPQ_XPATH_PORT      (from ports.conf)
 #   CONNINFO        libpq URI for the workers      (read from backend/.env)
+#
+# The two service ports come from ports.conf at the repo root (see
+# ports.sh); they are baked into the units here, so after changing that
+# file re-run this script and restart ringrpq.target.
 #
 # BACKEND_HOST defaults to loopback: bind the backend publicly only behind a
 # reverse proxy that terminates TLS. Set BACKEND_HOST=0.0.0.0 to expose it
@@ -29,6 +34,11 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNIT_SRC="$REPO/deploy/systemd"
 UNIT_DEST="/etc/systemd/system"
+
+# Sets and exports RINGRPQ_BACKEND_PORT / RINGRPQ_XPATH_PORT from the
+# environment, then ports.conf, then their defaults. Exits here if either
+# is not a port number, rather than writing a unit that can't bind.
+source "$REPO/ports.sh"
 
 # SUDO_USER is the human who ran sudo; $USER would be root.
 RINGRPQ_USER="${RINGRPQ_USER:-${SUDO_USER:-$USER}}"
@@ -65,6 +75,8 @@ echo "  user:         $RINGRPQ_USER"
 echo "  uvicorn:      $UVICORN"
 echo "  java:         $JAVA"
 echo "  backend host: $BACKEND_HOST"
+echo "  backend port: $RINGRPQ_BACKEND_PORT"
+echo "  xpath port:   $RINGRPQ_XPATH_PORT"
 echo "  conninfo:     ${CONNINFO%%:*}://…"
 
 for unit in "$UNIT_SRC"/*.service "$UNIT_SRC"/*.target; do
@@ -74,6 +86,8 @@ for unit in "$UNIT_SRC"/*.service "$UNIT_SRC"/*.target; do
         -e "s|@UVICORN@|$UVICORN|g" \
         -e "s|@JAVA@|$JAVA|g" \
         -e "s|@BACKEND_HOST@|$BACKEND_HOST|g" \
+        -e "s|@BACKEND_PORT@|$RINGRPQ_BACKEND_PORT|g" \
+        -e "s|@XPATH_PORT@|$RINGRPQ_XPATH_PORT|g" \
         -e "s|@CONNINFO@|$CONNINFO|g" \
         "$unit" >"$UNIT_DEST/$name"
     echo "  -> $UNIT_DEST/$name"
