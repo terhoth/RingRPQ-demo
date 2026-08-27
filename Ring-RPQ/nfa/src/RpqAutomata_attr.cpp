@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <sstream>
 #include <functional>
 #include "../include/parser.hpp"
 #include "../include/regular.hpp"

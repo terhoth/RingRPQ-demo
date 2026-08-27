@@ -33,7 +33,6 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include <sdsl/init_array.hpp>
 
 #include "bwt.hpp"
 #include "bwt-C-nose.hpp"
@@ -1621,7 +1620,7 @@ private:
 		{
 			int_attributes.emplace_back();
 			attributes_map["_" + std::to_string(i) + "_"] 
-					= AttrInfo{int_attributes.size()-1, AttrInfo::Node, AttrInfo::Int};
+					= AttrInfo{static_cast<uint64_t>(int_attributes.size()-1), AttrInfo::Node, AttrInfo::Int};
 		}
 	}
 	// Removes the added auxiliary attributes.

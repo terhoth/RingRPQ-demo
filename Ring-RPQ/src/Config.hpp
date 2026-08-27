@@ -29,7 +29,6 @@
 #include <sdsl/bit_vectors.hpp>
 #include <sdsl/wavelet_trees.hpp>
 #include <sdsl/wt_algorithm.hpp>
-#include <sdsl/init_array.hpp>
 
 using namespace sdsl;
 using namespace std;

@@ -9,6 +9,8 @@
 #define ATTR_INFO_HPP
 
 #include <cmath>
+#include <cstdint>
+#include <string>
 
 // used in .dat files to indicate missing attribute values
 const std::string NULL_VALUE = "_";

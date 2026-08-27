@@ -8,6 +8,7 @@
 #ifndef RPQ_AUTOMATA_ATTR_INCLUDED
 #define RPQ_AUTOMATA_ATTR_INCLUDED
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <unordered_map>
