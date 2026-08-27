@@ -3,10 +3,9 @@
 # run-workers.sh — start one ring-rpq-worker instance per usable database.
 #
 # Discovers databases under data/ (override with $RING_RPQ_DATA_DIR) the same
-# way backend/app/routers/query.py's list_databases() does (REQUIRED_SUFFIXES
-# below must stay in sync with that file's REQUIRED_GRAPH_SUFFIXES if it ever
-# changes — this script duplicates that rule rather than calling the backend,
-# so it works standalone without the backend needing to be up).
+# way backend/app/routers/query.py's list_databases() does — see
+# worker-discovery.sh, which this sources for that rule and which
+# deploy/enable-workers.sh sources too.
 #
 # Idempotent: re-running this (e.g. after dropping a new database's files
 # into data/) only starts workers for databases that don't already have a
@@ -23,59 +22,24 @@
 # regardless of the caller's cwd.
 #
 # The database folder location can be overridden (e.g. an external volume
-# instead of Ring-RPQ/data/), in order of precedence:
-#   1. $RING_RPQ_DATA_DIR, if set
-#   2. data-dir.conf next to this script (gitignored, single line, '#'
-#      comments allowed) — the same file ring-rpq-worker and the backend
-#      read, so the location only needs setting once
-#   3. Ring-RPQ/data/
-# Either way it's inherited by every worker process this script starts (as
-# $RING_RPQ_DATA_DIR, exported below), so ring-rpq-worker resolves the same
-# directory. Prefer an absolute path — it isn't resolved relative to
-# SCRIPT_DIR.
+# instead of Ring-RPQ/data/) — see worker-discovery.sh for the precedence
+# rules. Whatever it resolves to is inherited by every worker process this
+# script starts, so ring-rpq-worker sees the same directory.
+#
+# On a server, prefer the systemd units in deploy/ over this script; this is
+# the dev-loop launcher.
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-DATA_DIR_CONFIG_FILE="$SCRIPT_DIR/data-dir.conf"
-if [[ -z "${RING_RPQ_DATA_DIR:-}" && -f "$DATA_DIR_CONFIG_FILE" ]]; then
-    RING_RPQ_DATA_DIR="$(grep -vE '^[[:space:]]*(#|$)' "$DATA_DIR_CONFIG_FILE" | head -n1 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
-fi
-# Export (only if non-empty) so every worker process this script starts
-# inherits the same resolved value — an exported-but-empty var would
-# otherwise shadow ring-rpq-worker's own "data"/data-dir.conf fallback.
-[[ -n "${RING_RPQ_DATA_DIR:-}" ]] && export RING_RPQ_DATA_DIR
+# Sets DATA_DIR (exporting RING_RPQ_DATA_DIR when resolved) and defines
+# discover_databases() and sanitize().
+source "$SCRIPT_DIR/worker-discovery.sh"
 
-DATA_DIR="${RING_RPQ_DATA_DIR:-$SCRIPT_DIR/data}"
 RUN_DIR="$SCRIPT_DIR/run"
 WORKER_BIN="$SCRIPT_DIR/build/ring-rpq-worker"
-
-# Sibling files a base graph file (x.dat) must have to be a usable index —
-# mirrors backend/app/routers/query.py's REQUIRED_GRAPH_SUFFIXES.
-REQUIRED_SUFFIXES=(.SO .P .A .nTriples .attr.str .attr.int .attr.flt .L_S .C_S .bwtp.L .bwtp.C)
-
-# Prints one database_name per line (relative to data/, e.g. "foo/foo.dat"),
-# sorted, for every *.dat under data/ that has all its required siblings.
-discover_databases() {
-    [[ -d "$DATA_DIR" ]] || return 0
-    find "$DATA_DIR" -name "*.dat" | sort | while IFS= read -r dat_file; do
-        local ok=1
-        for suf in "${REQUIRED_SUFFIXES[@]}"; do
-            if [[ ! -f "${dat_file}${suf}" ]]; then
-                ok=0
-                break
-            fi
-        done
-        if [[ $ok -eq 1 ]]; then
-            echo "${dat_file#"$DATA_DIR"/}"
-        fi
-    done
-}
-
-# Filesystem-safe token for pid/log filenames — database_names contain '/'.
-sanitize() { printf '%s' "$1" | tr '/' '_'; }
 
 pid_file_for() { printf '%s/%s.pid' "$RUN_DIR" "$(sanitize "$1")"; }
 log_file_for() { printf '%s/%s.log' "$RUN_DIR" "$(sanitize "$1")"; }
@@ -116,6 +80,10 @@ cmd_start() {
         local log_file pid_file
         log_file="$(log_file_for "$db")"
         pid_file="$(pid_file_for "$db")"
+        # ring-rpq-worker rewrites this file itself once it has actually
+        # loaded its index and connected (same path, same pid) — writing it
+        # here too means `status` and the backend see the worker immediately
+        # rather than after a large graph's multi-second load.
         nohup "$WORKER_BIN" "$db" >"$log_file" 2>&1 &
         echo $! >"$pid_file"
         echo "run-workers.sh: started $db (pid $!, log $log_file)"
