@@ -1,0 +1,12 @@
+# Starts and stops the whole RingRPQ stack as one thing:
+#   sudo systemctl start ringrpq.target
+# Every other unit here declares PartOf=ringrpq.target, so stopping the
+# target stops them all, and WantedBy=ringrpq.target, so `systemctl enable`
+# hooks them in.
+[Unit]
+Description=RingRPQ demo stack
+Wants=postgresql.service
+After=postgresql.service
+
+[Install]
+WantedBy=multi-user.target

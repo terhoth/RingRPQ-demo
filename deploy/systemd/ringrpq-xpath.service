@@ -1,0 +1,18 @@
+[Unit]
+Description=XPathRingRPQ translation service (Spring Boot)
+After=network.target
+PartOf=ringrpq.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@/XPathRingRPQ
+# The packaged jar, not `mvnw spring-boot:run` — that forks a child JVM that
+# systemd can't track, and needs a writable Maven repo at runtime.
+# Build it first: ./mvnw -DskipTests package
+ExecStart=@JAVA@ -jar @REPO@/XPathRingRPQ/target/demo-0.0.1-SNAPSHOT.jar
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=ringrpq.target

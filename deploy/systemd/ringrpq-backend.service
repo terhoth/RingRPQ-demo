@@ -1,0 +1,20 @@
+[Unit]
+Description=RingRPQ backend API (FastAPI/uvicorn)
+# The backend opens its Postgres connection pool at import time, so it needs
+# the database actually accepting connections, not just the unit started.
+Wants=postgresql.service
+After=network.target postgresql.service
+PartOf=ringrpq.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@/backend
+# The conda env's uvicorn by absolute path — no `conda activate`, which needs
+# an interactive shell that systemd deliberately doesn't give us.
+ExecStart=@UVICORN@ app.main:app --host @BACKEND_HOST@ --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=ringrpq.target

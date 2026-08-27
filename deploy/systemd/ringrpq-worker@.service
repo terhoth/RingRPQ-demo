@@ -1,0 +1,32 @@
+# Templated on database_name. Because those contain '/', instances must be
+# addressed through systemd-escape — deploy/enable-workers.sh does that for
+# every discovered database:
+#
+#   sudo systemctl enable --now "ringrpq-worker@$(systemd-escape 'foo/foo.dat').service"
+#
+# %I is the unescaped instance name, so the worker receives the original
+# 'foo/foo.dat' back.
+[Unit]
+Description=Ring-RPQ query worker for %I
+Wants=postgresql.service
+After=network.target postgresql.service
+PartOf=ringrpq.target
+
+[Service]
+Type=simple
+User=@USER@
+# ring-rpq-worker resolves both ./data (or ./data-dir.conf) and the ./run/
+# pid file it writes relative to its cwd, so this must be Ring-RPQ/.
+WorkingDirectory=@REPO@/Ring-RPQ
+Environment=RING_RPQ_DB_CONNINFO=@CONNINFO@
+ExecStart=@REPO@/Ring-RPQ/build/ring-rpq-worker %I
+# SIGTERM lets the worker finish its claimed row and remove its pid file. A
+# row killed mid-flight stays 'running' in query_cache with no auto-recovery,
+# so give a large graph's query room to finish.
+KillSignal=SIGTERM
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=ringrpq.target
