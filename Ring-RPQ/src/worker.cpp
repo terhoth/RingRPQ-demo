@@ -26,6 +26,14 @@
  *   to the current directory, so with neither override this must be run
  *   with its working directory set to Ring-RPQ/.
  *
+ *   Writes run/<database_name with '/' -> '_'>.pid once it's actually ready
+ *   to serve (index loaded, database connected) and removes it on clean
+ *   shutdown. run-workers.sh writes the same file for the workers it starts,
+ *   but doing it here too means a worker started any other way — a systemd
+ *   unit, or by hand — is equally visible to the backend, which uses these
+ *   files to decide whether a database is queryable (see
+ *   backend/app/routers/query.py's _worker_is_running).
+ *
  *   Usage: ring-rpq-worker <database_name> [conninfo]
  *   DB connection string: argv[2] if given, then $RING_RPQ_DB_CONNINFO, else
  *   a default matching backend/.env's credentials (libpq connection URI, not
@@ -35,13 +43,17 @@
 #include "ring_rpq_attr.hpp"
 #include "worker_db.hpp"
 
+#include <cerrno>
 #include <chrono>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -93,6 +105,31 @@ std::string resolve_data_dir() {
     std::string from_file;
     if (read_data_dir_config_file(from_file)) return from_file;
     return "data";
+}
+
+// Where run-workers.sh keeps its pid files, and where the backend looks for
+// them — relative to the cwd, same as the "data" fallback above.
+const char* const RUN_DIR = "run";
+
+// database_names contain '/', which can't appear in a filename. Mirrors
+// run-workers.sh's sanitize() and query.py's replace('/', '_').
+std::string pid_file_path(const std::string& database_name) {
+    std::string sanitized = database_name;
+    for (size_t i = 0; i < sanitized.size(); ++i) {
+        if (sanitized[i] == '/') sanitized[i] = '_';
+    }
+    return std::string(RUN_DIR) + "/" + sanitized + ".pid";
+}
+
+// Best-effort: a worker that can't write its pid file still does its real job
+// (draining query_cache), it just won't be listed as available by the backend.
+void write_pid_file(const std::string& path) {
+    std::ofstream f(path.c_str());
+    if (!f) {
+        std::cerr << "ring-rpq-worker: warning: could not write pid file " << path << std::endl;
+        return;
+    }
+    f << getpid() << std::endl;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +299,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Only now — index loaded and database reachable — is this worker actually
+    // able to serve queries, which is what the pid file advertises.
+    if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
+        std::cerr << "ring-rpq-worker: warning: could not create " << RUN_DIR << "/" << std::endl;
+    }
+    std::string pid_file = pid_file_path(database_name);
+    write_pid_file(pid_file);
+
     std::cout << "ring-rpq-worker: connected, polling query_cache for database_name='" << database_name
               << "' every " << POLL_INTERVAL_SECONDS << "s (data dir: " << data_dir << ")" << std::endl;
 
@@ -281,6 +326,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "ring-rpq-worker: shutting down" << std::endl;
+    std::remove(pid_file.c_str());
     db_disconnect(db);
     return 0;
 }
