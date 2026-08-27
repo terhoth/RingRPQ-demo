@@ -9,12 +9,14 @@ from .routers import health, query
 
 app = FastAPI(title="RingRPQ API")
 
+# Vite falls back to 5174, 5175, ... when 5173 is already taken (e.g. a leftover
+# `npm run dev` from an earlier session), so in development any localhost port is
+# accepted. Off by default — in production the frontend is served from this same
+# origin (see the static mount below) and no wildcard is warranted.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
-    # Vite falls back to 5174, 5175, ... when 5173 is already taken (e.g. a leftover
-    # `npm run dev` from an earlier session), so also allow any localhost dev port.
-    allow_origin_regex=r"http://localhost:\d+",
+    allow_origin_regex=r"http://localhost:\d+" if settings.allow_localhost_origins else None,
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// '??' not '||': in production the backend serves this bundle from its own
+// origin (see backend/app/main.py's static mount), and .env.production sets
+// VITE_API_BASE_URL to the empty string so these calls stay relative. '||'
+// would treat that empty string as unset and fall back to the dev URL.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 // backend/app/routers/query.py's QueryRequest requires both as non-nullable ints
 // with no "unlimited" sentinel defined yet, so a blank field in the form has to
