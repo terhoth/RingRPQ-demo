@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import './QueryForm.css'
 
 import { getDatabases } from './services/databases'
@@ -39,6 +39,14 @@ const QueryForm = () => {
 
     fetchDatabases()
   }, [])
+
+  // Both fields are optional in graph_doc.json, so each is checked on its own;
+  // the type guards keep a malformed entry from taking the whole form down.
+  const selectedDoc = databaseDocs[databaseName]
+  const docLinks = Array.isArray(selectedDoc?.links)
+    ? selectedDoc.links.filter((link) => typeof link === 'string')
+    : []
+  const docNote = typeof selectedDoc?.note === 'string' ? selectedDoc.note : ''
 
   let databasePlaceholder = 'Select a database…'
   if (isLoadingDatabases) {
@@ -132,14 +140,20 @@ const QueryForm = () => {
               </option>
             ))}
           </select>
-          {databaseDocs[databaseName] && (
+          {docLinks.length > 0 && (
             <p className="databaseDocLink">
               Documentation for this graph is available{' '}
-              <a href={databaseDocs[databaseName]} target="_blank" rel="noopener noreferrer">
-                here
-              </a>.
+              {docLinks.map((link, index) => (
+                <Fragment key={link}>
+                  {index > 0 && ', '}
+                  <a href={link} target="_blank" rel="noopener noreferrer">
+                    here
+                  </a>
+                </Fragment>
+              ))}.
             </p>
           )}
+          {docNote && <p className="databaseDocNote">{docNote}</p>}
         </div>
 
         <div className="formRow">

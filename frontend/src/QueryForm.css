@@ -80,10 +80,16 @@
   cursor: not-allowed;
 }
 
-.databaseDocLink {
+.databaseDocLink,
+.databaseDocNote {
   margin: 0;
   font-size: 13px;
   color: var(--text);
+}
+
+/* The note is shown verbatim, so keep its own line breaks. */
+.databaseDocNote {
+  white-space: pre-wrap;
 }
 
 .databaseDocLink a {

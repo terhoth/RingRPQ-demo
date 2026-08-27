@@ -61,13 +61,42 @@ def _worker_is_running(database_name: str) -> bool:
     return True
 
 # Optional file at the data dir's root mapping a graph's relative .dat path (the
-# same string list_databases() returns) to a URL with that graph's documentation.
-# Entries for graphs that aren't currently available are simply ignored by the
-# frontend, so this can be a superset of what list_databases() finds.
+# same string list_databases() returns) to that graph's documentation entry:
+#
+#     {"some/graph.dat": {"links": ["https://…", "https://…"], "note": "…"}}
+#
+# "links" holds any number of documentation URLs and "note" a literal
+# instruction the frontend shows verbatim below them; either may be omitted, and
+# a bare string value is still accepted as shorthand for a single link. Entries
+# for graphs that aren't currently available are simply ignored by the frontend,
+# so this can be a superset of what list_databases() finds.
 GRAPH_DOC_FILE = RING_RPQ_DATA_DIR / "graph_doc.json"
 
 
-def _read_graph_docs() -> dict[str, str]:
+def _parse_graph_doc(value: object) -> dict[str, object] | None:
+    if isinstance(value, str):
+        return {"links": [value], "note": ""}
+    if not isinstance(value, dict):
+        return None
+
+    raw_links = value.get("links")
+    if isinstance(raw_links, str):
+        links = [raw_links]
+    elif isinstance(raw_links, list):
+        links = [link for link in raw_links if isinstance(link, str)]
+    else:
+        links = []
+
+    note = value.get("note")
+    if not isinstance(note, str):
+        note = ""
+
+    if not links and not note:
+        return None
+    return {"links": links, "note": note}
+
+
+def _read_graph_docs() -> dict[str, dict[str, object]]:
     if not GRAPH_DOC_FILE.is_file():
         return {}
     try:
@@ -76,7 +105,15 @@ def _read_graph_docs() -> dict[str, str]:
         return {}
     if not isinstance(data, dict):
         return {}
-    return {key: value for key, value in data.items() if isinstance(key, str) and isinstance(value, str)}
+
+    docs = {}
+    for key, value in data.items():
+        if not isinstance(key, str):
+            continue
+        entry = _parse_graph_doc(value)
+        if entry is not None:
+            docs[key] = entry
+    return docs
 
 
 # Sibling files a base graph file (x.dat) must have alongside it to be a usable index.
