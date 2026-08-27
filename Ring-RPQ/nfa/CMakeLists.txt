@@ -1,9 +1,8 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
 project(NFA)
 set(PROJECT_VENDOR "Adrian Gomez Brandon")
 set(CMAKE_PROJECT_NAME "NFA")
 set(PROJECT_CONTACT "adrian.gbrandon@udc.es")
-set(CMAKE_INSTALL_PREFIX /home/adrian/software)
 set(CMAKE_COMPILER_IS_GNUCXX)
 
 include_directories(./include)
