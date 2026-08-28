@@ -1,11 +1,19 @@
 # Ring-RPQ-demo
 
+**Setting this up for the first time?** See [SETUP.md](SETUP.md) for the full install and
+build guide (Linux/WSL primary, macOS in an appendix), and [OPERATION.md](OPERATION.md) for
+running the stack day to day.
+
 ## Ring-RPQ
 
 Graph compression and query evaluation algorithms.
 
 To build the code:
-1. Install an extended SDSL library from <https://github.com/adriangbrandon/sdsl-lite>
+1. Install the **extended** SDSL library from <https://github.com/adriangbrandon/sdsl-lite>.
+   This fork is required — vanilla SDSL-lite is missing symbols this codebase depends on
+   (`wm_int::unmark`, `initializable_array`, ...) and will not build. On a current toolchain
+   its `install.sh` needs `CXXFLAGS="-Wno-template-body" CMAKE_POLICY_VERSION_MINIMUM=3.5`;
+   see [SETUP.md](SETUP.md).
 2. In `Ring-RPQ` create a subdirectory `build`
 3. Run `cmake ..` and `make` in the build directory
 
@@ -39,3 +47,6 @@ To compile the code and translate a query:
 2. `mvn spring-boot:start`
 3. `curl http://localhost:8080/translate?query=XPATH_EXPRESSION`
 4. `mvn spring-boot:stop`
+
+Port 8080 is the default. It, and the backend API's 8000, are set in
+[ports.conf](ports.conf) at the repo root — see [OPERATION.md](OPERATION.md#ports).
