@@ -145,7 +145,12 @@ const QueryForm = () => {
               Documentation for this graph is available{' '}
               {docLinks.map((link, index) => (
                 <Fragment key={link}>
-                  {index > 0 && ', '}
+                  {index > 0 &&
+                    (index === docLinks.length - 1
+                      ? docLinks.length > 2
+                        ? ', and '
+                        : ' and '
+                      : ', ')}
                   <a href={link} target="_blank" rel="noopener noreferrer">
                     here
                   </a>
