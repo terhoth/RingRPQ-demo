@@ -1,12 +1,12 @@
 import axios from 'axios'
 
-// '??' not '||': in production the backend serves this bundle from its own
-// origin (see backend/app/main.py's static mount), and .env.production sets
-// VITE_API_BASE_URL to the empty string so these calls stay relative. '||'
-// would treat that empty string as unset and fall back to the dev URL.
-// In dev the variable comes from vite.config.js, which derives it from
-// RINGRPQ_BACKEND_PORT / ports.conf; the literal below is the last resort.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+// Empty VITE_API_BASE_URL means same-origin — but the bundle may be served
+// under a path prefix (vite's `base`), so resolve against that rather than
+// the origin root. BASE_URL always carries a trailing slash; the paths below
+// supply their own.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? import.meta.env.BASE_URL.replace(/\/$/, '') : 'http://localhost:8000')
 
 /**
  * @returns {Promise<{graphs: string[], docs: Record<string, {links: string[], note: string}>}>}
