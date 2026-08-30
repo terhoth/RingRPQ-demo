@@ -47,6 +47,7 @@ export default defineConfig(({ command, mode }) => {
     }
   }
   return {
+    base: '/ringrpq-demo/',
     plugins: [react()],
   }
 })
