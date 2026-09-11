@@ -462,6 +462,22 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	}
 
 	@Override
+	public void exitQName(xpathRpqParser.QNameContext ctx) {
+		// A local part that begins with a digit arrives as a single
+		// PrefixedNumericName token instead of nCName ':' nCName, since the lexer
+		// would otherwise split it into a Number and an NCName. Split it back
+		// here, so everything downstream sees the same prefix/local pair it would
+		// for any other prefixed name.
+		TerminalNode prefixed = ctx.PrefixedNumericName();
+		if (prefixed != null) {
+			String text = prefixed.getText();
+			int colon = text.indexOf(':');
+			this.nCNamePrefix = text.substring(0, colon);
+			this.nCName = text.substring(colon + 1);
+		}
+	}
+
+	@Override
 	public void exitNCName(xpathRpqParser.NCNameContext ctx) {
 		String name = new StringBuilder().append(ctx.getChild(0)).toString();
 		// Within one nameTest, a second NCName means the first was a namespace

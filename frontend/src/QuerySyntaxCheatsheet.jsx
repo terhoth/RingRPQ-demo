@@ -63,6 +63,11 @@ const QuerySyntaxCheatsheet = () => (
       prefix is a syntax error.
     </p>
     <p>
+      After a prefix, a name may begin with a digit —{' '}
+      <code>yago:1792_United_States_presidential_election</code>. Without a prefix it may not,
+      as the leading digits would be read as a number.
+    </p>
+    <p>
       A prefix may also be combined with the wildcard, as <code>prefix:*</code>, to match any
       vertex in that namespace — <code>yago:Belgium/owl:sameAs/wd:*</code> follows{' '}
       <code>sameAs</code> only to Wikidata entities. This works on vertex steps; on an edge
