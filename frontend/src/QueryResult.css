@@ -113,6 +113,21 @@ table.queryResultTable th {
   width: 50%;
 }
 
+/* Deliberately not styled as a hyperlink: an answer table where every cell is
+   blue and underlined is harder to read, not easier. The cell keeps its normal
+   appearance and the pointer cursor signals it can be followed; the underline
+   appears only on hover/focus. */
+.queryResultLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.queryResultLink:hover,
+.queryResultLink:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .queryResultRaw {
   margin: 0;
   padding: 12px;
