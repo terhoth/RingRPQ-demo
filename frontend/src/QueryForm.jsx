@@ -40,13 +40,21 @@ const QueryForm = () => {
     fetchDatabases()
   }, [])
 
-  // Both fields are optional in graph_doc.json, so each is checked on its own;
-  // the type guards keep a malformed entry from taking the whole form down.
+  // All three fields are optional in graph_doc.json, so each is checked on its
+  // own; the type guards keep a malformed entry from taking the whole form down.
   const selectedDoc = databaseDocs[databaseName]
   const docLinks = Array.isArray(selectedDoc?.links)
     ? selectedDoc.links.filter((link) => typeof link === 'string')
     : []
   const docNote = typeof selectedDoc?.note === 'string' ? selectedDoc.note : ''
+  // Only graphs whose entities are named by full URIs declare prefixes; for the
+  // rest this is empty and no prefix table is shown.
+  const docPrefixes =
+    selectedDoc?.prefixes && typeof selectedDoc.prefixes === 'object'
+      ? Object.entries(selectedDoc.prefixes).filter(
+          ([prefix, namespace]) => typeof prefix === 'string' && typeof namespace === 'string',
+        )
+      : []
 
   let databasePlaceholder = 'Select a database…'
   if (isLoadingDatabases) {
@@ -159,6 +167,20 @@ const QueryForm = () => {
             </p>
           )}
           {docNote && <p className="databaseDocNote">{docNote}</p>}
+          {docPrefixes.length > 0 && (
+            <div className="databaseDocPrefixes">
+              <p>Namespace prefixes you can use in queries on this graph:</p>
+              <ul>
+                {docPrefixes.map(([prefix, namespace]) => (
+                  <li key={prefix}>
+                    <code>{prefix}:</code>
+                    <span aria-hidden="true"> → </span>
+                    <code>{namespace}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="formRow">

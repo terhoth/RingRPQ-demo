@@ -1,6 +1,5 @@
 .queryForm {
   width: 100%;
-  max-width: 480px;
   margin: 0 auto;
   padding: 32px;
   box-sizing: border-box;
@@ -20,6 +19,11 @@
 .formRow .formField {
   flex: 1;
   min-width: 0;
+}
+
+/* The row's inputs hold small numbers; let the row grow but not the fields. */
+.formRow .formField input {
+  max-width: 240px;
 }
 
 .formField {
@@ -94,6 +98,30 @@
 
 .databaseDocLink a {
   color: var(--accent);
+}
+
+/* Shown only for graphs that declare prefixes in graph_doc.json. */
+.databaseDocPrefixes {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.databaseDocPrefixes p {
+  margin: 0;
+}
+
+.databaseDocPrefixes ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 2px 16px;
+}
+
+.databaseDocPrefixes code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .errorMessage {
