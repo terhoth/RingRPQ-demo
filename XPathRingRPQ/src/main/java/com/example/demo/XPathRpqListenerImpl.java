@@ -26,7 +26,7 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 	private Stack<String> startEdge = new Stack<String>();
 	private Stack<String> endEdge = new Stack<String>();
 
-	private String nCName;
+	private StringBuilder nodeName = new StringBuilder();
 
 	private boolean firstStep = true;
 	private boolean deletedStep = false;
@@ -322,7 +322,7 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 
 	@Override
 	public void enterNameTest(xpathRpqParser.NameTestContext ctx) {
-		this.nCName = "";
+		this.nodeName.setLength(0);
 	}
 
 	@Override
@@ -334,20 +334,27 @@ public class XPathRpqListenerImpl extends xpathRpqBaseListener {
 			(this.queryStack.size() >  1 && n_of_steps % 2 == 0)) {
 			this.queryStack.peek().append('&');
 		}
-		this.queryStack.peek().append(this.nCName);
-		this.warnIf(ctx.getChildCount() > 1, "Namespace identifier discarded");
+		// append the node name to the query
+		if (ctx.getChildCount() == 1) {
+			this.queryStack.peek().append(this.nodeName.toString());
+		} else { 
+			// complicated special case: the node is a wildcard but has namespace prefixes
+			if (this.firstStep && this.queryStack.size() == 1) {
+				// Add variable vertex ?x to the beginning to overcome Ring-RPQ-Attr limitations
+				StringBuilder tmpStep = this.queryStack.pop();
+				this.queryStack.push(new StringBuilder("?x ").append(tmpStep));
+			}
+			// use Ring-RPQ-Attr's meta attribute __NODELABEL__ to check for the prefixes
+			this.queryStack.peek().append("[__NODELABEL__ BEGINS ").append(this.nodeName.toString()).append("]");
+			this.stepContainsPredicate = true;
+		}
 		if (this.verbose) System.out.println(this.queryStack.peek());
 	}
 
 	@Override
-	public void exitQName(xpathRpqParser.QNameContext ctx) {
-		this.warnIf(ctx.getChildCount() > 1, "Namespace identifier discarded");
-	}
-
-	@Override
 	public void exitNCName(xpathRpqParser.NCNameContext ctx) {
-		StringBuilder sb = new StringBuilder();
-		this.nCName = sb.append(ctx.getChild(0)).toString();	
+		if (this.nodeName.length() > 0) this.nodeName.append(":");
+		this.nodeName.append(ctx.getChild(0));	
 	}
 
 	@Override
