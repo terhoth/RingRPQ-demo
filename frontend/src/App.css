@@ -18,6 +18,8 @@
 }
 
 .queryConsole {
-  flex: 1 1 480px;
+  /* Takes the lion's share of any width beyond the cheat sheet's max-width,
+     since this is the column holding the answer table. */
+  flex: 1 1 620px;
   min-width: 0;
 }

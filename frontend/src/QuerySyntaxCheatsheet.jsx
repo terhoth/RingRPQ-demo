@@ -52,6 +52,29 @@ const QuerySyntaxCheatsheet = () => (
       <code>&lt;=</code> <code>&gt;=</code>.
     </p>
 
+    <h3>Namespace prefixes</h3>
+    <p>
+      Some graphs identify their vertices and edges by full URIs, which cannot be written
+      directly as a step. Those graphs declare namespace prefixes, listed under the database
+      picker once you select one, and a step may then be written as{' '}
+      <code>prefix:name</code> — for example <code>yago:Belgium/yago:capital/*</code>. Each
+      prefixed name is expanded to its full URI before the query runs; answers are always
+      reported as full URIs. A name written without a prefix is never expanded, and an unknown
+      prefix is a syntax error.
+    </p>
+    <p>
+      After a prefix, a name may begin with a digit —{' '}
+      <code>yago:1792_United_States_presidential_election</code>. Without a prefix it may not,
+      as the leading digits would be read as a number.
+    </p>
+    <p>
+      A prefix may also be combined with the wildcard, as <code>prefix:*</code>, to match any
+      vertex in that namespace — <code>yago:Belgium/owl:sameAs/wd:*</code> follows{' '}
+      <code>sameAs</code> only to Wikidata entities. This works on vertex steps; on an edge
+      step there is nothing for the namespace to restrict, so it is reported as a warning and
+      the step is treated as a plain <code>*</code>.
+    </p>
+
     <p>Further restrictions to the query syntax:</p>
     <ul>
       <li>

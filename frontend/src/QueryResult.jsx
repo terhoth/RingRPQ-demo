@@ -16,6 +16,22 @@ const formatElapsed = (seconds) => {
   return `${minutes}m ${seconds % 60}s`
 }
 
+// Answers are dictionary entries, and on a URI dataset most of them are
+// resolvable addresses worth following. Only http(s) is treated as a link —
+// anything else (a bare name like 'A', or some other scheme) stays plain text,
+// which also keeps javascript: and data: values out of an href.
+const HTTP_URL = /^https?:\/\/\S+$/i
+
+const QueryResultCell = ({ value }) => {
+  const text = String(value)
+  if (!HTTP_URL.test(text)) return text
+  return (
+    <a className="queryResultLink" href={text} target="_blank" rel="noopener noreferrer">
+      {text}
+    </a>
+  )
+}
+
 const QueryResultTable = ({ result }) => {
   if (!result || !Array.isArray(result.columns) || !Array.isArray(result.rows)) {
     return <pre className="queryResultRaw">{JSON.stringify(result, null, 2)}</pre>
@@ -42,7 +58,9 @@ const QueryResultTable = ({ result }) => {
           {result.rows.map((row, rowIndex) => (
             <tr key={rowIndex}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex}>{String(cell)}</td>
+                <td key={cellIndex}>
+                  <QueryResultCell value={cell} />
+                </td>
               ))}
             </tr>
           ))}

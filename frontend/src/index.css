@@ -55,7 +55,9 @@ body {
 }
 
 #root {
-  width: 1126px;
+  /* Wide enough for the query console and the cheat sheet side by side with
+     room for full URIs in the answer table; max-width keeps it responsive. */
+  width: 1440px;
   max-width: 100%;
   margin: 0 auto;
   text-align: center;

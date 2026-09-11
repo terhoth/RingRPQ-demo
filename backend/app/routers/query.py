@@ -63,19 +63,28 @@ def _worker_is_running(database_name: str) -> bool:
 # Optional file at the data dir's root mapping a graph's relative .dat path (the
 # same string list_databases() returns) to that graph's documentation entry:
 #
-#     {"some/graph.dat": {"links": ["https://…", "https://…"], "note": "…"}}
+#     {"some/graph.dat": {"links": ["https://…", "https://…"], "note": "…",
+#                         "prefixes": {"ex": "http://example.org/"}}}
 #
 # "links" holds any number of documentation URLs and "note" a literal
 # instruction the frontend shows verbatim below them; either may be omitted, and
 # a bare string value is still accepted as shorthand for a single link. Entries
 # for graphs that aren't currently available are simply ignored by the frontend,
 # so this can be a superset of what list_databases() finds.
+#
+# "prefixes" is what makes namespace-prefixed names (yago:Belgium) usable on a
+# graph whose dictionary holds full URIs: submit_query hands the map to
+# XPathRingRPQ, which expands "yago:Belgium" to the full URI while translating.
+# It is per-graph and entirely opt-in — a graph without a "prefixes" entry (all
+# of them but yago.dat today) is translated exactly as before, with prefixed
+# names still rejected. tools/graph-prefixes.py derives the map for a graph from
+# its source Turtle header and built dictionaries.
 GRAPH_DOC_FILE = RING_RPQ_DATA_DIR / "graph_doc.json"
 
 
 def _parse_graph_doc(value: object) -> dict[str, object] | None:
     if isinstance(value, str):
-        return {"links": [value], "note": ""}
+        return {"links": [value], "note": "", "prefixes": {}}
     if not isinstance(value, dict):
         return None
 
@@ -91,9 +100,31 @@ def _parse_graph_doc(value: object) -> dict[str, object] | None:
     if not isinstance(note, str):
         note = ""
 
-    if not links and not note:
+    raw_prefixes = value.get("prefixes")
+    if isinstance(raw_prefixes, dict):
+        # Both halves must be strings, and a namespace is only useful if there
+        # is a prefix to reach it by — an empty prefix would mean "expand every
+        # bare name", which is deliberately not supported.
+        prefixes = {
+            prefix: namespace
+            for prefix, namespace in raw_prefixes.items()
+            if isinstance(prefix, str) and prefix and isinstance(namespace, str) and namespace
+        }
+    else:
+        prefixes = {}
+
+    if not links and not note and not prefixes:
         return None
-    return {"links": links, "note": note}
+    return {"links": links, "note": note, "prefixes": prefixes}
+
+
+def _prefixes_for(database_name: str) -> dict[str, str]:
+    """The namespace prefixes declared for one graph in graph_doc.json, or {} if
+    it declares none — in which case the query is translated with no expansion
+    step at all, exactly as before this was added."""
+    entry = _read_graph_docs().get(database_name) or {}
+    prefixes = entry.get("prefixes")
+    return prefixes if isinstance(prefixes, dict) else {}
 
 
 def _read_graph_docs() -> dict[str, dict[str, object]]:
@@ -168,8 +199,16 @@ def list_databases():
 
 @router.post("/submit")
 def submit_query(request: QueryRequest, db: Annotated[Session, Depends(get_db)]):
+    params = {"query": request.query}
+    # Only graphs that declare prefixes get the expansion step; for every other
+    # graph the request is byte-for-byte what it was before, and XPathRingRPQ
+    # falls back to its unprefixed behaviour.
+    prefixes = _prefixes_for(request.database_name)
+    if prefixes:
+        params["prefixes"] = json.dumps(prefixes)
+
     with httpx.Client() as client:
-        resp = client.get(f"{settings.xpathringrpq_url}/translate", params={"query": request.query})
+        resp = client.get(f"{settings.xpathringrpq_url}/translate", params=params)
 
     data = resp.json() if resp.is_success else {}
     translated_query = data.get("query")

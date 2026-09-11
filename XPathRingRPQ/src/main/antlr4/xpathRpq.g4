@@ -159,6 +159,7 @@ unaryExprNoRoot
   ;
 
 qName  :  nCName (':' nCName)?
+  |  PrefixedNumericName
   ;
 
 // Does not match NodeType, as per spec.
@@ -268,6 +269,18 @@ Literal  :  '"' ~'"'* '"'
 
 Whitespace
   :  (' '|'\t'|'\n'|'\r')+ ->skip
+  ;
+
+// A prefixed name whose local part begins with a digit, e.g.
+// yago:1792_United_States_presidential_election. One token, because the lexer
+// would otherwise split the local part into a Number and an NCName
+// ('1792' + '_United_...') and qName could not put it back together. Matching
+// the colon and the digit together keeps every name that already lexed
+// unchanged: the only inputs this can claim are ones that were a syntax error
+// before. An unprefixed name still may not begin with a digit — that would be
+// ambiguous with Number in attribute tests.
+PrefixedNumericName
+  :  NCNameStartChar NCNameChar* ':' '0'..'9' NCNameChar*
   ;
 
 NCName  :  NCNameStartChar NCNameChar*
